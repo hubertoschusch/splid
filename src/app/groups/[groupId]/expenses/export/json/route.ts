@@ -28,6 +28,16 @@ export async function GET(
           conversionRate: true,
           paidById: true,
           paidFor: { select: { participantId: true, shares: true } },
+          items: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              displayOrder: true,
+              assignees: { select: { participantId: true } },
+            },
+            orderBy: { displayOrder: 'asc' },
+          },
           isReimbursement: true,
           splitMode: true,
           recurrenceRule: true,

@@ -227,6 +227,16 @@
     "amountField": {
       "label": "Amount"
     },
+    "items": {
+      "title": "Items",
+      "description": "Add each item and select who shares it.",
+      "name": "Item name",
+      "price": "Price",
+      "assignees": "Assigned to",
+      "add": "Add item",
+      "remove": "Remove item",
+      "total": "Itemized total"
+    },
     "conversionUnavailable": "To set a different currency per expense and convert amounts, select a non-custom currency for the group.",
     "originalAmountField": {
       "label": "Amount to convert",
@@ -269,6 +279,7 @@
       "byShares": "Unevenly – By shares",
       "byPercentage": "Unevenly – By percentage",
       "byAmount": "Unevenly – By amount",
+      "itemized": "Itemized",
       "saveAsDefault": "Save as default splitting options"
     },
     "DeletePopup": {
@@ -487,6 +498,10 @@
     "duplicateParticipantName": "Another participant already has this name.",
     "titleRequired": "Please enter a title.",
     "invalidNumber": "Invalid number.",
+    "itemsRequired": "Add at least one item.",
+    "itemNameRequired": "Enter an item name.",
+    "itemPricePositive": "The price must be greater than zero.",
+    "itemAssigneesRequired": "Select at least one person.",
     "amountRequired": "You must enter an amount.",
     "amountNotZero": "The amount must not be zero.",
     "amountTenMillion": "The amount must be lower than 10,000,000.",

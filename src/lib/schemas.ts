@@ -81,7 +81,6 @@ export const expenseFormSchema = z
             issue.input === undefined ? 'amountRequired' : undefined,
         },
       )
-      .refine((amount) => amount != 0, 'amountNotZero')
       .refine((amount) => amount <= 10_000_000_00, 'amountTenMillion'),
     originalAmount: z
       .union([
@@ -102,6 +101,20 @@ export const expenseFormSchema = z
       error: (issue) =>
         issue.input === undefined ? 'paidByRequired' : undefined,
     }),
+    items: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1, 'itemNameRequired').max(200, 'max200'),
+          // The form uses display currency; the submit handler converts to minor units.
+          price: z.coerce.number('invalidNumber').positive('itemPricePositive'),
+          assignees: z
+            .array(z.string().max(64))
+            .min(1, 'itemAssigneesRequired')
+            .max(100),
+        }),
+      )
+      .max(500)
+      .default([]),
     paidFor: z
       .array(
         z.object({
@@ -153,7 +166,21 @@ export const expenseFormSchema = z
     recurrenceRule: z.enum(RecurrenceRule).default('NONE'),
   })
   .superRefine((expense, ctx) => {
+    if (expense.splitMode !== 'ITEMIZED' && expense.amount === 0)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'amountNotZero',
+        path: ['amount'],
+      })
     switch (expense.splitMode) {
+      case 'ITEMIZED':
+        if (!expense.items.length)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'itemsRequired',
+            path: ['items'],
+          })
+        break
       case 'EVENLY':
         break // noop
       case 'BY_SHARES':
@@ -202,8 +229,13 @@ export const expenseFormSchema = z
   })
   .transform((expense) => {
     // Format the share split as a number (if from form submission)
+    const itemizedAmount =
+      expense.splitMode === 'ITEMIZED'
+        ? expense.items.reduce((sum, item) => sum + item.price, 0)
+        : expense.amount
     return {
       ...expense,
+      amount: itemizedAmount,
       paidFor: expense.paidFor.map((paidFor) => {
         const shares = paidFor.shares
         if (typeof shares === 'string' && expense.splitMode !== 'BY_AMOUNT') {
