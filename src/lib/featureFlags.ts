@@ -21,6 +21,7 @@ export async function getRuntimeFeatureFlags() {
     enableReceiptExtract:
       parseFlag(process.env.ENABLE_RECEIPT_EXTRACT) ||
       env.NEXT_PUBLIC_ENABLE_RECEIPT_EXTRACT,
+    enableLocalReceiptOcr: parseFlag(process.env.ENABLE_LOCAL_RECEIPT_OCR),
     enableCategoryExtract:
       parseFlag(process.env.ENABLE_CATEGORY_EXTRACT) ||
       env.NEXT_PUBLIC_ENABLE_CATEGORY_EXTRACT,

@@ -274,6 +274,23 @@
     }
   },
   "CreateFromReceipt": {
+    "Local": {
+      "description": "Lies den Gesamtbetrag lokal auf diesem Gerät aus.",
+      "onDevice": "Auf diesem Gerät",
+      "cloud": "Cloud-Erkennung",
+      "privacy": "Das Bild wird auf diesem Gerät gelesen und für die OCR nicht hochgeladen.",
+      "selectImage": "Foto aufnehmen oder Bild auswählen",
+      "previewAlt": "Ausgewählter Rechnungsbeleg",
+      "language": "Sprache des Belegs",
+      "noSecondLanguage": "Eine Sprache",
+      "scan": "Lokal scannen",
+      "cancel": "Abbrechen",
+      "amount": "Betrag",
+      "continue": "Betrag übernehmen",
+      "uncertain": "Es wurde kein verlässlicher Gesamtbetrag gefunden. Wähle einen Vorschlag oder gib den Betrag ein.",
+      "error": "Der Beleg konnte nicht gelesen werden. Versuche es mit einem anderen Bild.",
+      "tooBig": "Das ausgewählte Bild ist zu groß."
+    },
     "Dialog": {
       "triggerTitle": "Ausgabe aus Rechnungsbeleg erstellen",
       "title": "Aus Rechnungsbeleg erstellen",

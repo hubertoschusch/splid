@@ -17,6 +17,7 @@ export async function generateMetadata() {
 export default async function GroupExpensesPage() {
   return (
     <GroupExpensesPageClient
+      enableLocalReceiptOcr={env.ENABLE_LOCAL_RECEIPT_OCR}
       enableReceiptExtract={
         env.ENABLE_RECEIPT_EXTRACT || env.NEXT_PUBLIC_ENABLE_RECEIPT_EXTRACT
       }

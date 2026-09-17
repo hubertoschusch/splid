@@ -69,6 +69,10 @@ const envSchema = z
       interpretEnvVarAsBool,
       z.boolean().default(false),
     ),
+    ENABLE_LOCAL_RECEIPT_OCR: z.preprocess(
+      interpretEnvVarAsBool,
+      z.boolean().default(false),
+    ),
     NEXT_PUBLIC_ENABLE_CATEGORY_EXTRACT: z.preprocess(
       interpretEnvVarAsBool,
       z.boolean().default(false),
