@@ -208,6 +208,7 @@
     "items": {
       "title": "Produkte",
       "description": "Füge jedes Produkt hinzu und wähle aus, wer daran beteiligt ist.",
+      "empty": "Noch keine Produkte hinzugefügt.",
       "name": "Produktname",
       "price": "Preis",
       "assignees": "Aufgeteilt auf",

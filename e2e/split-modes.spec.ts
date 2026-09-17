@@ -76,10 +76,12 @@ test('splits an expense by amount', async ({ page }) => {
 })
 
 test('creates an itemized expense in the splitting card', async ({ page }) => {
+  const longCarol = 'Carol with a very long participant name'
   const groupId = await createGroup(page, {
     name: `E2E Itemized ${uniqueSuffix()}`,
-    participants: PARTICIPANTS,
+    participants: ['Alice', 'Bob', longCarol],
   })
+  await page.setViewportSize({ width: 375, height: 812 })
 
   await page.goto(`/groups/${groupId}/expenses/create`)
   const submit = page.getByRole('button', { name: 'Create', exact: true })
@@ -92,11 +94,14 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   const editor = page.getByTestId('itemized-editor')
   await expect(editor).toBeVisible()
+  await expect(editor.getByText('No items added yet.')).toBeVisible()
+  const addItem = editor.getByRole('button', { name: 'Add item' })
+  await expect(addItem).toBeVisible()
 
   await submit.click()
   await expect(editor.getByText('Add at least one item.')).toBeVisible()
 
-  await editor.getByRole('button', { name: 'Add item' }).click()
+  await addItem.click()
   const rows = editor.getByTestId('itemized-row')
   await expect(editor.getByText('Add at least one item.')).toBeHidden()
   await expect(rows.nth(0).getByText('Enter an item name.')).toBeVisible()
@@ -121,12 +126,12 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   // Keep an invalid row in the middle, then remove it. Errors and values from
   // the following row must stay attached to the right item.
-  await editor.getByRole('button', { name: 'Add item' }).click()
-  await editor.getByRole('button', { name: 'Add item' }).click()
+  await addItem.click()
+  await addItem.click()
   await fillStable(rows.nth(2).getByLabel('Item name'), 'Juice')
   await fillStable(rows.nth(2).getByLabel(/Price/), '3')
   await rows.nth(2).getByRole('checkbox', { name: 'Bob' }).click()
-  await rows.nth(2).getByRole('checkbox', { name: 'Carol' }).click()
+  await rows.nth(2).getByRole('checkbox', { name: longCarol }).click()
 
   await rows.nth(1).getByRole('button', { name: 'Remove item' }).click()
   await expect(rows).toHaveCount(2)
@@ -138,13 +143,28 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
   await expect(editor.getByText('Select at least one person.')).toBeHidden()
   await expect(editor.getByText('Itemized total')).toBeVisible()
 
+  const lastRowBox = await rows.last().boundingBox()
+  const addItemBox = await addItem.boundingBox()
+  expect(lastRowBox).not.toBeNull()
+  expect(addItemBox).not.toBeNull()
+  expect(addItemBox!.y).toBeGreaterThanOrEqual(
+    lastRowBox!.y + lastRowBox!.height,
+  )
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+
   await submit.click()
   await page.waitForURL(EXPENSES_URL, { timeout: 30_000 })
 
   await openTab(page, 'Balances')
   await expectBalance(page, 'Alice', 9)
   await expectBalance(page, 'Bob', -7.5)
-  await expectBalance(page, 'Carol', -1.5)
+  await expectBalance(page, longCarol, -1.5)
 })
 
 test('keeps a by-amount split that skips a participant when reopened', async ({

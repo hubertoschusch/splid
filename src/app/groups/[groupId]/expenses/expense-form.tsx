@@ -1505,31 +1505,21 @@ export function ExpenseForm({
                     className="mt-5 border-t pt-5"
                     data-testid="itemized-editor"
                   >
-                    <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-semibold">
-                          {t('items.title')}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {t('items.description')}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => {
-                          appendItem({ name: '', price: 0, assignees: [] })
-                          revalidateItemsAfterSubmit()
-                        }}
-                      >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        {t('items.add')}
-                      </Button>
+                    <div className="mb-4 space-y-1">
+                      <h3 className="text-sm font-semibold">
+                        {t('items.title')}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {t('items.description')}
+                      </p>
                     </div>
 
                     <div className="space-y-3">
+                      {!itemFields.length && (
+                        <div className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+                          {t('items.empty')}
+                        </div>
+                      )}
                       {itemFields.map((itemField, index) => {
                         const item = watchedItems[index] ?? itemField
                         return (
@@ -1538,12 +1528,12 @@ export function ExpenseForm({
                             className="rounded-md border bg-muted/20 p-3"
                             data-testid="itemized-row"
                           >
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.25rem] items-start gap-2">
+                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.5rem]">
                               <FormField
                                 control={form.control}
                                 name={`items.${index}.name`}
                                 render={({ field }) => (
-                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                  <FormItem className="col-start-1 min-w-0 space-y-1">
                                     <FormLabel className="text-xs text-muted-foreground">
                                       {t('items.name')}
                                     </FormLabel>
@@ -1564,7 +1554,7 @@ export function ExpenseForm({
                                 control={form.control}
                                 name={`items.${index}.price`}
                                 render={({ field }) => (
-                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                  <FormItem className="col-start-1 row-start-2 min-w-0 space-y-1 sm:col-start-2 sm:row-start-1">
                                     <FormLabel className="text-xs text-muted-foreground">
                                       {t('items.price')} ({groupCurrency.code})
                                     </FormLabel>
@@ -1595,7 +1585,7 @@ export function ExpenseForm({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="col-start-3 row-start-1 mt-5 text-muted-foreground hover:text-destructive"
+                                className="col-start-2 row-start-1 mt-5 text-muted-foreground hover:text-destructive sm:col-start-3"
                                 aria-label={t('items.remove')}
                                 title={t('items.remove')}
                                 onClick={() => {
@@ -1612,7 +1602,7 @@ export function ExpenseForm({
                                 <FormLabel className="text-xs text-muted-foreground">
                                   {t('items.assignees')}
                                 </FormLabel>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex min-w-0 flex-wrap gap-2">
                                   {group.participants.map((participant) => {
                                     const checked = item.assignees.includes(
                                       participant.id,
@@ -1621,7 +1611,7 @@ export function ExpenseForm({
                                       <label
                                         key={participant.id}
                                         className={cn(
-                                          'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                                          'flex min-h-10 max-w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors sm:min-h-8 sm:px-2.5',
                                           checked
                                             ? 'border-primary/40 bg-primary/10 text-foreground'
                                             : 'bg-background text-muted-foreground hover:bg-accent',
@@ -1651,7 +1641,10 @@ export function ExpenseForm({
                                             revalidateItemsAfterSubmit()
                                           }}
                                         />
-                                        <span className="max-w-40 truncate">
+                                        <span
+                                          className="min-w-0 max-w-48 truncate"
+                                          title={participant.name}
+                                        >
                                           {participant.name}
                                         </span>
                                       </label>
@@ -1670,11 +1663,25 @@ export function ExpenseForm({
                       <FormMessage className="mt-3" />
                     </FormFieldScope>
 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 w-full sm:w-auto"
+                      onClick={() => {
+                        appendItem({ name: '', price: 0, assignees: [] })
+                        revalidateItemsAfterSubmit()
+                      }}
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      {t('items.add')}
+                    </Button>
+
                     {!!itemizedPreview.size && (
                       <div className="mt-4 rounded-md bg-muted/50 px-3 py-2.5 text-sm">
-                        <div className="flex items-center justify-between gap-3 font-medium">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-medium">
                           <span>{t('items.total')}</span>
-                          <span>
+                          <span className="shrink-0 tabular-nums">
                             {formatCurrency(
                               groupCurrency,
                               [...itemizedPreview.values()].reduce(
@@ -1685,13 +1692,20 @@ export function ExpenseForm({
                             )}
                           </span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <div className="mt-2 grid gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
                           {[...itemizedPreview].map(([id, amount]) => (
-                            <span key={id}>
-                              {group.participants.find((p) => p.id === id)
-                                ?.name ?? id}
-                              : {formatCurrency(groupCurrency, amount, locale)}
-                            </span>
+                            <div
+                              key={id}
+                              className="flex min-w-0 items-baseline justify-between gap-2"
+                            >
+                              <span className="min-w-0 truncate">
+                                {group.participants.find((p) => p.id === id)
+                                  ?.name ?? id}
+                              </span>
+                              <span className="shrink-0 tabular-nums">
+                                {formatCurrency(groupCurrency, amount, locale)}
+                              </span>
+                            </div>
                           ))}
                         </div>
                       </div>
