@@ -231,6 +231,7 @@
       "title": "Items",
       "description": "Add each item and select who shares it.",
       "empty": "No items added yet.",
+      "item": "Item {number}",
       "name": "Item name",
       "price": "Price",
       "assignees": "Assigned to",

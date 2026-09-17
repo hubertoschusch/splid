@@ -112,6 +112,9 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   await addItem.click()
   const rows = editor.getByTestId('itemized-row')
+  await expect(
+    rows.nth(0).getByRole('heading', { name: 'Item 1' }),
+  ).toBeVisible()
   await expect(editor.getByText('Add at least one item.')).toBeHidden()
   await expect(rows.nth(0).getByText('Enter an item name.')).toBeVisible()
   await expect(
@@ -144,6 +147,9 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   await rows.nth(1).getByRole('button', { name: 'Remove item' }).click()
   await expect(rows).toHaveCount(2)
+  await expect(
+    rows.nth(1).getByRole('heading', { name: 'Item 2' }),
+  ).toBeVisible()
   await expect(rows.nth(1).getByLabel('Item name')).toHaveValue('Juice')
   await expect(editor.getByText('Enter an item name.')).toBeHidden()
   await expect(

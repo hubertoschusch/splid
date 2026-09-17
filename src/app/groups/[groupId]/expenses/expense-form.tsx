@@ -1549,15 +1549,35 @@ export function ExpenseForm({
                         return (
                           <div
                             key={itemField.id}
-                            className="relative rounded-md border bg-muted/20 p-3"
+                            className="rounded-md border bg-muted/20 p-3"
                             data-testid="itemized-row"
                           >
-                            <div className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)] sm:pr-10">
+                            <div className="mb-3 flex items-center justify-between gap-3 border-b pb-2">
+                              <h4 className="text-sm font-medium">
+                                {t('items.item', { number: index + 1 })}
+                              </h4>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
+                                aria-label={t('items.remove')}
+                                title={t('items.remove')}
+                                onClick={() => {
+                                  removeItem(index)
+                                  revalidateItemsAfterSubmit()
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)]">
                               <FormField
                                 control={form.control}
                                 name={`items.${index}.name`}
                                 render={({ field }) => (
-                                  <FormItem className="min-w-0 space-y-1 pr-10 sm:pr-0">
+                                  <FormItem className="min-w-0 space-y-1">
                                     <FormLabel className="text-xs text-muted-foreground">
                                       {t('items.name')}
                                     </FormLabel>
@@ -1605,20 +1625,6 @@ export function ExpenseForm({
                                   </FormItem>
                                 )}
                               />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
-                                aria-label={t('items.remove')}
-                                title={t('items.remove')}
-                                onClick={() => {
-                                  removeItem(index)
-                                  revalidateItemsAfterSubmit()
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </div>
 
                             <FormFieldScope name={`items.${index}.assignees`}>
