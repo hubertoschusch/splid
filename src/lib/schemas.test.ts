@@ -60,3 +60,24 @@ describe('expenseFormSchema, split by amount', () => {
     ])
   })
 })
+
+describe('expenseFormSchema, itemized', () => {
+  it('ignores hidden participant shares and derives the amount from items', () => {
+    const result = expenseFormSchema.safeParse({
+      ...byAmountExpense('0', []),
+      splitMode: 'ITEMIZED',
+      paidFor: [{ participant: 'stale', shares: 'not-a-number' }],
+      items: [{ name: 'Pizza', price: '12.50', assignees: ['a'] }],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.amount).toBe(12.5)
+      expect(result.data.paidFor).toEqual([])
+    }
+  })
+
+  it('still requires participants outside itemized mode', () => {
+    expect(issueMessages(byAmountExpense('10', []))).toContain('paidForMin1')
+  })
+})

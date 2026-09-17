@@ -89,8 +89,17 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   await fillStable(page.locator('input[name="title"]'), 'Shared groceries')
   await selectRadixOption(page, page.getByTestId('paid-by'), 'Alice')
+  await page.getByRole('button', { name: 'Select none' }).click()
+  await expect(page.getByTestId('paid-for-list')).toBeVisible()
   await page.getByRole('button', { name: /Advanced splitting options/ }).click()
   await selectRadixOption(page, page.getByTestId('split-mode'), /Itemized/)
+
+  await expect(page.getByTestId('paid-for-list')).toHaveCount(0)
+  await expect(page.getByText('Paid for')).toHaveCount(0)
+  await selectRadixOption(page, page.getByTestId('split-mode'), 'Evenly')
+  await expect(page.getByTestId('paid-for-list')).toBeVisible()
+  await selectRadixOption(page, page.getByTestId('split-mode'), /Itemized/)
+  await expect(page.getByTestId('paid-for-list')).toHaveCount(0)
 
   const editor = page.getByTestId('itemized-editor')
   await expect(editor).toBeVisible()
