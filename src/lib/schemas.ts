@@ -81,7 +81,6 @@ export const expenseFormSchema = z
             issue.input === undefined ? 'amountRequired' : undefined,
         },
       )
-      .refine((amount) => amount != 0, 'amountNotZero')
       .refine((amount) => amount <= 10_000_000_00, 'amountTenMillion'),
     originalAmount: z
       .union([
@@ -102,39 +101,29 @@ export const expenseFormSchema = z
       error: (issue) =>
         issue.input === undefined ? 'paidByRequired' : undefined,
     }),
+    items: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1, 'itemNameRequired').max(200, 'max200'),
+          // The form uses display currency; the submit handler converts to minor units.
+          price: z.coerce.number('invalidNumber').positive('itemPricePositive'),
+          assignees: z
+            .array(z.string().max(64))
+            .min(1, 'itemAssigneesRequired')
+            .max(100),
+        }),
+      )
+      .max(500)
+      .default([]),
     paidFor: z
       .array(
         z.object({
           participant: z.string().max(64),
           originalAmount: z.string().optional(), // For converting shares by amounts in original currency, not saved.
-          shares: z.union([
-            z.number(),
-            z.string().transform((value, ctx) => {
-              const normalizedValue = value.replace(/,/g, '.')
-              const valueAsNumber = Number(normalizedValue)
-              if (Number.isNaN(valueAsNumber))
-                ctx.addIssue({
-                  code: z.ZodIssueCode.custom,
-                  message: 'invalidNumber',
-                })
-              return value
-            }),
-          ]),
+          shares: z.union([z.number(), z.string()]),
         }),
       )
-      .min(1, 'paidForMin1')
-      .max(100)
-      .superRefine((paidFor, ctx) => {
-        for (const { shares } of paidFor) {
-          const shareNumber = Number(shares)
-          if (shareNumber <= 0) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: 'noZeroShares',
-            })
-          }
-        }
-      }),
+      .max(100),
     splitMode: z.enum(SplitMode).default('EVENLY'),
     saveDefaultSplittingOptions: z.boolean(),
     isReimbursement: z.boolean(),
@@ -153,7 +142,46 @@ export const expenseFormSchema = z
     recurrenceRule: z.enum(RecurrenceRule).default('NONE'),
   })
   .superRefine((expense, ctx) => {
+    if (expense.splitMode !== 'ITEMIZED') {
+      if (!expense.paidFor.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'paidForMin1',
+          path: ['paidFor'],
+        })
+      }
+      expense.paidFor.forEach(({ shares }, index) => {
+        const shareNumber = Number(String(shares).replace(/,/g, '.'))
+        if (Number.isNaN(shareNumber)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'invalidNumber',
+            path: ['paidFor', index, 'shares'],
+          })
+        } else if (shareNumber <= 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'noZeroShares',
+            path: ['paidFor', index, 'shares'],
+          })
+        }
+      })
+    }
+    if (expense.splitMode !== 'ITEMIZED' && expense.amount === 0)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'amountNotZero',
+        path: ['amount'],
+      })
     switch (expense.splitMode) {
+      case 'ITEMIZED':
+        if (!expense.items.length)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'itemsRequired',
+            path: ['items'],
+          })
+        break
       case 'EVENLY':
         break // noop
       case 'BY_SHARES':
@@ -202,23 +230,37 @@ export const expenseFormSchema = z
   })
   .transform((expense) => {
     // Format the share split as a number (if from form submission)
+    const itemizedAmount =
+      expense.splitMode === 'ITEMIZED'
+        ? expense.items.reduce((sum, item) => sum + item.price, 0)
+        : expense.amount
     return {
       ...expense,
-      paidFor: expense.paidFor.map((paidFor) => {
-        const shares = paidFor.shares
-        if (typeof shares === 'string' && expense.splitMode !== 'BY_AMOUNT') {
-          // For splitting not by amount, preserve the previous behaviour of multiplying the share by 100
-          return {
-            ...paidFor,
-            shares: Math.round(Number(shares) * 100),
-          }
-        }
-        // Otherwise, no need as the number will have been formatted according to currency.
-        return {
-          ...paidFor,
-          shares: Number(shares),
-        }
-      }),
+      amount: itemizedAmount,
+      // Item assignments determine the shares in itemized mode. Discard the
+      // hidden participant inputs from the parsed result so stale values can
+      // neither block nor leak into submission.
+      paidFor:
+        expense.splitMode === 'ITEMIZED'
+          ? []
+          : expense.paidFor.map((paidFor) => {
+              const shares = paidFor.shares
+              if (
+                typeof shares === 'string' &&
+                expense.splitMode !== 'BY_AMOUNT'
+              ) {
+                // For splitting not by amount, preserve the previous behaviour of multiplying the share by 100
+                return {
+                  ...paidFor,
+                  shares: Math.round(Number(shares) * 100),
+                }
+              }
+              // Otherwise, no need as the number will have been formatted according to currency.
+              return {
+                ...paidFor,
+                shares: Number(shares),
+              }
+            }),
     }
   })
 

@@ -205,6 +205,18 @@
     "amountField": {
       "label": "Betrag"
     },
+    "items": {
+      "title": "Produkte",
+      "description": "Füge jedes Produkt hinzu und wähle aus, wer daran beteiligt ist.",
+      "empty": "Noch keine Produkte hinzugefügt.",
+      "item": "Produkt {number}",
+      "name": "Produktname",
+      "price": "Preis",
+      "assignees": "Aufgeteilt auf",
+      "add": "Produkt hinzufügen",
+      "remove": "Produkt entfernen",
+      "total": "Gesamtsumme"
+    },
     "isReimbursementField": {
       "label": "Das ist eine Rückzahlung"
     },
@@ -224,6 +236,7 @@
       "byShares": "Ungleichmäßig – Nach Anteilen",
       "byPercentage": "Ungleichmäßig – Prozentual",
       "byAmount": "Ungleichmäßig – Nach Betrag",
+      "itemized": "Nach Produkte",
       "saveAsDefault": "Als Standard für Aufteilungsoptionen speichern"
     },
     "DeletePopup": {
@@ -364,6 +377,10 @@
     "duplicateParticipantName": "Ein anderer Teilnehmer hat bereits diesen Namen.",
     "titleRequired": "Bitte gib einen Titel an.",
     "invalidNumber": "Ungültige Zahl.",
+    "itemsRequired": "Füge mindestens ein Produkt hinzu.",
+    "itemNameRequired": "Gib einen Produktnamen ein.",
+    "itemPricePositive": "Der Preis muss größer als 0 sein.",
+    "itemAssigneesRequired": "Wähle mindestens eine Person aus.",
     "amountRequired": "Du musst einen Betrag angeben.",
     "amountNotZero": "Der Betrag darf nicht 0 sein.",
     "amountTenMillion": "Der Betrag muss kleiner als 10.000.000 sein.",

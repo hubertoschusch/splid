@@ -32,6 +32,7 @@ model Participant {
   groupId         String
   expensesPaidBy  Expense[]
   expensesPaidFor ExpensePaidFor[]
+  itemAssignments ExpenseItemAssignee[]
 }
 
 model Category {
@@ -55,6 +56,7 @@ model Expense {
   paidBy           Participant       @relation(fields: [paidById], references: [id], onDelete: Cascade)
   paidById         String
   paidFor          ExpensePaidFor[]
+  items            ExpenseItem[]
   groupId          String
   isReimbursement  Boolean           @default(false)
   splitMode        SplitMode         @default(EVENLY)
@@ -81,6 +83,28 @@ enum SplitMode {
   BY_SHARES
   BY_PERCENTAGE
   BY_AMOUNT
+  ITEMIZED
+}
+
+model ExpenseItem {
+  id          String                @id
+  expense     Expense               @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  expenseId   String
+  name        String
+  price       Int
+  displayOrder Int
+  assignees   ExpenseItemAssignee[]
+
+  @@index([expenseId, displayOrder])
+}
+
+model ExpenseItemAssignee {
+  item          ExpenseItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId        String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  participantId String
+
+  @@id([itemId, participantId])
 }
 
 model RecurringExpenseLink {
