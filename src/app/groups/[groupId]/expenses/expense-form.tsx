@@ -45,6 +45,7 @@ import {
 import { RuntimeFeatureFlags } from '@/lib/featureFlags'
 import { useActiveUser, useCurrencyRate } from '@/lib/hooks'
 import { randomId } from '@/lib/random'
+import { readReceiptDraft } from '@/lib/receipt-ocr/receipt-draft'
 import {
   EXPENSE_NOTES_MAX,
   ExpenseFormInput,
@@ -68,7 +69,7 @@ import { ChevronRight, Plus, Save, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
@@ -194,6 +195,17 @@ export function ExpenseForm({
   const locale = useLocale() as Locale
   const isCreate = expense === undefined
   const searchParams = useSearchParams()
+  const receiptDraft = useMemo(
+    () =>
+      typeof window === 'undefined'
+        ? null
+        : readReceiptDraft(
+            searchParams.get('receiptDraft'),
+            group.id,
+            new Set(group.participants.map(({ id }) => id)),
+          ),
+    [group.id, group.participants, searchParams],
+  )
 
   /** Whether the form was opened from a suggested reimbursement ("Mark as paid"). */
   const isRepayment = isCreate && !!searchParams.get('reimbursement')
@@ -292,7 +304,8 @@ export function ExpenseForm({
             expenseDate: searchParams.get('date')
               ? new Date(searchParams.get('date') as string)
               : getTodayForDateInput(),
-            amount: Number(searchParams.get('amount')) || 0,
+            amount:
+              Number(receiptDraft?.amount ?? searchParams.get('amount')) || 0,
             originalCurrency: group.currencyCode ?? undefined,
             originalAmount: undefined,
             conversionRate: undefined,
@@ -303,7 +316,9 @@ export function ExpenseForm({
             paidFor: defaultSplittingOptions.paidFor,
             paidBy: getSelectedPayer(),
             isReimbursement: false,
-            splitMode: defaultSplittingOptions.splitMode,
+            splitMode: receiptDraft
+              ? 'ITEMIZED'
+              : defaultSplittingOptions.splitMode,
             saveDefaultSplittingOptions: false,
             documents: searchParams.get('imageUrl')
               ? [
@@ -317,7 +332,7 @@ export function ExpenseForm({
               : [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
-            items: [],
+            items: receiptDraft?.items ?? [],
           },
   })
   const {

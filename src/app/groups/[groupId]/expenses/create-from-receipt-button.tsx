@@ -361,14 +361,14 @@ function CreateFromReceiptDrawer({
   return (
     <Drawer>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-      <DrawerContent>
+      <DrawerContent className="max-h-[92dvh]">
         <DrawerHeader>
           <DrawerTitle className="flex items-center gap-2">{title}</DrawerTitle>
           <DrawerDescription className="text-left">
             {description}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="px-4 pb-4">{children}</div>
+        <div className="overflow-y-auto px-4 pb-4">{children}</div>
       </DrawerContent>
     </Drawer>
   )
