@@ -22,7 +22,13 @@ export async function recognizeReceipt(
         progress: Number.isFinite(progress) ? progress : 0,
       }),
   })
-  const abort = () => void worker.terminate()
+  let terminated = false
+  const terminate = async () => {
+    if (terminated) return
+    terminated = true
+    await worker.terminate()
+  }
+  const abort = () => void terminate()
   signal?.addEventListener('abort', abort, { once: true })
 
   try {
@@ -32,6 +38,6 @@ export async function recognizeReceipt(
     return { text: result.data.text, confidence: result.data.confidence }
   } finally {
     signal?.removeEventListener('abort', abort)
-    await worker.terminate()
+    await terminate()
   }
 }

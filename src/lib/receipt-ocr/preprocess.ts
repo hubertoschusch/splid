@@ -1,13 +1,22 @@
 const MAX_IMAGE_EDGE = 2400
 
+export class UnsupportedReceiptImageError extends Error {
+  name = 'UnsupportedReceiptImageError'
+}
+
 /**
  * Downscale and increase the contrast of a receipt without uploading it.
  * createImageBitmap also applies the EXIF orientation in current browsers.
  */
 export async function preprocessReceiptImage(file: Blob): Promise<Blob> {
-  const bitmap = await createImageBitmap(file, {
-    imageOrientation: 'from-image',
-  })
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    throw new UnsupportedReceiptImageError(
+      'The browser could not decode this image format.',
+    )
+  }
   const scale = Math.min(
     1,
     MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height),

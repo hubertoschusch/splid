@@ -227,6 +227,16 @@
     "amountField": {
       "label": "Amount"
     },
+    "items": {
+      "title": "Items",
+      "description": "Add each item and select who shares it.",
+      "name": "Item name",
+      "price": "Price",
+      "assignees": "Assigned to",
+      "add": "Add item",
+      "remove": "Remove item",
+      "total": "Itemized total"
+    },
     "conversionUnavailable": "To set a different currency per expense and convert amounts, select a non-custom currency for the group.",
     "originalAmountField": {
       "label": "Amount to convert",
@@ -269,6 +279,7 @@
       "byShares": "Unevenly – By shares",
       "byPercentage": "Unevenly – By percentage",
       "byAmount": "Unevenly – By amount",
+      "itemized": "Itemized",
       "saveAsDefault": "Save as default splitting options"
     },
     "DeletePopup": {
@@ -298,6 +309,32 @@
     }
   },
   "CreateFromReceipt": {
+    "Local": {
+      "description": "Read the total from a receipt locally on this device.",
+      "onDevice": "On device",
+      "cloud": "Cloud extraction",
+      "privacy": "The image is read on this device and is not uploaded for OCR.",
+      "selectImage": "Take a photo or select an image",
+      "takePhoto": "Take photo",
+      "chooseGallery": "Choose from gallery",
+      "previewAlt": "Selected receipt",
+      "language": "Receipt language",
+      "noSecondLanguage": "One language",
+      "scan": "Scan locally",
+      "cancel": "Cancel",
+      "amount": "Amount",
+      "items": "Products",
+      "addItem": "Add",
+      "itemName": "Product name",
+      "itemPrice": "Price",
+      "removeItem": "Remove product",
+      "itemsMismatch": "The product total differs from the receipt total. Review the products before continuing.",
+      "continue": "Use amount",
+      "uncertain": "No reliable total was found. Choose a candidate or enter the amount.",
+      "error": "The receipt could not be read. Try another image.",
+      "tooBig": "The selected image is too large.",
+      "unsupportedImage": "This image format is not supported by your browser. Choose another image."
+    },
     "Dialog": {
       "triggerTitle": "Create expense from receipt",
       "title": "Create from receipt",
@@ -470,6 +507,10 @@
     "duplicateParticipantName": "Another participant already has this name.",
     "titleRequired": "Please enter a title.",
     "invalidNumber": "Invalid number.",
+    "itemsRequired": "Add at least one item.",
+    "itemNameRequired": "Enter an item name.",
+    "itemPricePositive": "The price must be greater than zero.",
+    "itemAssigneesRequired": "Select at least one person.",
     "amountRequired": "You must enter an amount.",
     "amountNotZero": "The amount must not be zero.",
     "amountTenMillion": "The amount must be lower than 10,000,000.",

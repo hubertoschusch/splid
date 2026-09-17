@@ -11,6 +11,7 @@ const SPLIT_MODES: SplitMode[] = [
   'BY_SHARES',
   'BY_PERCENTAGE',
   'BY_AMOUNT',
+  'ITEMIZED',
 ]
 
 function expense(

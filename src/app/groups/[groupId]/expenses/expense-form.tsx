@@ -45,6 +45,7 @@ import {
 import { RuntimeFeatureFlags } from '@/lib/featureFlags'
 import { useActiveUser, useCurrencyRate } from '@/lib/hooks'
 import { randomId } from '@/lib/random'
+import { readReceiptDraft } from '@/lib/receipt-ocr/receipt-draft'
 import {
   EXPENSE_NOTES_MAX,
   ExpenseFormInput,
@@ -64,12 +65,12 @@ import {
 } from '@/lib/utils'
 import { AppRouterOutput } from '@/trpc/routers/_app'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronRight, Save } from 'lucide-react'
+import { ChevronRight, Plus, Save, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useMemo, useState } from 'react'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
 import { extractCategoryFromTitle } from '../../../../components/expense-form-actions'
@@ -194,6 +195,17 @@ export function ExpenseForm({
   const locale = useLocale() as Locale
   const isCreate = expense === undefined
   const searchParams = useSearchParams()
+  const receiptDraft = useMemo(
+    () =>
+      typeof window === 'undefined'
+        ? null
+        : readReceiptDraft(
+            searchParams.get('receiptDraft'),
+            group.id,
+            new Set(group.participants.map(({ id }) => id)),
+          ),
+    [group.id, group.participants, searchParams],
+  )
 
   /** Whether the form was opened from a suggested reimbursement ("Mark as paid"). */
   const isRepayment = isCreate && !!searchParams.get('reimbursement')
@@ -215,6 +227,8 @@ export function ExpenseForm({
   const groupCurrency = getCurrencyFromGroup(group)
   const form = useForm<ExpenseFormInput, any, ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: expense
       ? {
           title: expense.title,
@@ -241,6 +255,11 @@ export function ExpenseForm({
               expense.splitMode === 'BY_AMOUNT'
                 ? amountAsDecimal(shares, groupCurrency)
                 : (shares / 100).toString(), // Convert to string to ensure consistent handling
+          })),
+          items: expense.items.map((item) => ({
+            name: item.name,
+            price: amountAsDecimal(item.price, groupCurrency),
+            assignees: item.assignees.map(({ participantId }) => participantId),
           })),
           splitMode: expense.splitMode,
           saveDefaultSplittingOptions: false,
@@ -278,13 +297,15 @@ export function ExpenseForm({
             documents: [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
+            items: [],
           }
         : {
             title: searchParams.get('title') ?? '',
             expenseDate: searchParams.get('date')
               ? new Date(searchParams.get('date') as string)
               : getTodayForDateInput(),
-            amount: Number(searchParams.get('amount')) || 0,
+            amount:
+              Number(receiptDraft?.amount ?? searchParams.get('amount')) || 0,
             originalCurrency: group.currencyCode ?? undefined,
             originalAmount: undefined,
             conversionRate: undefined,
@@ -295,7 +316,9 @@ export function ExpenseForm({
             paidFor: defaultSplittingOptions.paidFor,
             paidBy: getSelectedPayer(),
             isReimbursement: false,
-            splitMode: defaultSplittingOptions.splitMode,
+            splitMode: receiptDraft
+              ? 'ITEMIZED'
+              : defaultSplittingOptions.splitMode,
             saveDefaultSplittingOptions: false,
             documents: searchParams.get('imageUrl')
               ? [
@@ -309,11 +332,44 @@ export function ExpenseForm({
               : [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
+            items: receiptDraft?.items ?? [],
           },
   })
+  const {
+    fields: itemFields,
+    append: appendItem,
+    remove: removeItem,
+  } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  })
+  const watchedItems = form.watch('items') ?? []
+
+  const revalidateItemsAfterSubmit = () => {
+    if (!form.formState.isSubmitted) return
+    queueMicrotask(() => void form.trigger('items'))
+  }
   const [isCategoryLoading, setCategoryLoading] = useState(false)
   const activeUserId = useActiveUser(group.id)
   const sendEvent = useAnalytics()
+  // Preview follows the same integer remainder rule as the server.
+  const itemizedPreview = (() => {
+    const totals = new Map<string, number>()
+    for (const item of watchedItems) {
+      const assignees = [...new Set(item.assignees)].sort()
+      const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
+      if (!assignees.length || price <= 0) continue
+      const each = Math.floor(price / assignees.length)
+      const remainder = price % assignees.length
+      assignees.forEach((id, index) =>
+        totals.set(
+          id,
+          (totals.get(id) ?? 0) + each + (index < remainder ? 1 : 0),
+        ),
+      )
+    }
+    return totals
+  })()
 
   const submit = async (values: ExpenseFormValues) => {
     sendEvent(
@@ -331,6 +387,10 @@ export function ExpenseForm({
         values.splitMode === 'BY_AMOUNT'
           ? amountAsMinorUnits(shares, groupCurrency)
           : shares,
+    }))
+    values.items = values.items.map((item) => ({
+      ...item,
+      price: amountAsMinorUnits(item.price, groupCurrency),
     }))
 
     // Currency should be blank if same as group currency, or if no conversion took place
@@ -888,69 +948,71 @@ export function ExpenseForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field: { onChange, ...field } }) => (
-                <FormItem
-                  className={
-                    convertFromGroupCurrency ? 'sm:order-4' : 'sm:order-5'
-                  }
-                >
-                  <FormLabel>{t('amountField.label')}</FormLabel>
-                  <div className="flex items-baseline gap-2">
-                    <span>{group.currency}</span>
-                    <FormControl>
-                      <Input
-                        className="text-base max-w-[120px]"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        onChange={(event) => {
-                          const v = enforceCurrencyPattern(
-                            event.target.value,
-                            groupCurrency,
-                          )
-                          const income = Number(v) < 0
-                          setIsIncome(income)
-                          if (income) form.setValue('isReimbursement', false)
-                          onChange(v)
-                        }}
-                        onFocus={(e) => {
-                          // we're adding a small delay to get around safaris issue with onMouseUp deselecting things again
-                          const target = e.currentTarget
-                          setTimeout(() => target.select(), 1)
-                        }}
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
+            {form.watch('splitMode') !== 'ITEMIZED' && (
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field: { onChange, ...field } }) => (
+                  <FormItem
+                    className={
+                      convertFromGroupCurrency ? 'sm:order-4' : 'sm:order-5'
+                    }
+                  >
+                    <FormLabel>{t('amountField.label')}</FormLabel>
+                    <div className="flex items-baseline gap-2">
+                      <span>{group.currency}</span>
+                      <FormControl>
+                        <Input
+                          className="text-base max-w-[120px]"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          onChange={(event) => {
+                            const v = enforceCurrencyPattern(
+                              event.target.value,
+                              groupCurrency,
+                            )
+                            const income = Number(v) < 0
+                            setIsIncome(income)
+                            if (income) form.setValue('isReimbursement', false)
+                            onChange(v)
+                          }}
+                          onFocus={(e) => {
+                            // we're adding a small delay to get around safaris issue with onMouseUp deselecting things again
+                            const target = e.currentTarget
+                            setTimeout(() => target.select(), 1)
+                          }}
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
 
-                  {!isIncome && (
-                    <FormField
-                      control={form.control}
-                      name="isReimbursement"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row gap-2 items-center space-y-0 pt-2">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div>
-                            <FormLabel>
-                              {t('isReimbursementField.label')}
-                            </FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </FormItem>
-              )}
-            />
+                    {!isIncome && (
+                      <FormField
+                        control={form.control}
+                        name="isReimbursement"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row gap-2 items-center space-y-0 pt-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div>
+                              <FormLabel>
+                                {t('isReimbursementField.label')}
+                              </FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -1420,6 +1482,9 @@ export function ExpenseForm({
                               <SelectItem value="BY_AMOUNT">
                                 {t('SplitModeField.byAmount')}
                               </SelectItem>
+                              <SelectItem value="ITEMIZED">
+                                {t('SplitModeField.itemized')}
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </FormControl>
@@ -1449,6 +1514,205 @@ export function ExpenseForm({
                     )}
                   />
                 </div>
+
+                {form.watch('splitMode') === 'ITEMIZED' && (
+                  <div
+                    className="mt-5 border-t pt-5"
+                    data-testid="itemized-editor"
+                  >
+                    <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold">
+                          {t('items.title')}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {t('items.description')}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => {
+                          appendItem({ name: '', price: 0, assignees: [] })
+                          revalidateItemsAfterSubmit()
+                        }}
+                      >
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        {t('items.add')}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {itemFields.map((itemField, index) => {
+                        const item = watchedItems[index] ?? itemField
+                        return (
+                          <div
+                            key={itemField.id}
+                            className="rounded-md border bg-muted/20 p-3"
+                            data-testid="itemized-row"
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.25rem] items-start gap-2">
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.name`}
+                                render={({ field }) => (
+                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                    <FormLabel className="text-xs text-muted-foreground">
+                                      {t('items.name')}
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        onChange={(event) => {
+                                          field.onChange(event)
+                                          revalidateItemsAfterSubmit()
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.price`}
+                                render={({ field }) => (
+                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                    <FormLabel className="text-xs text-muted-foreground">
+                                      {t('items.price')} ({groupCurrency.code})
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step={
+                                          10 ** -groupCurrency.decimal_digits
+                                        }
+                                        inputMode="decimal"
+                                        {...field}
+                                        onChange={(event) => {
+                                          field.onChange(event)
+                                          revalidateItemsAfterSubmit()
+                                        }}
+                                        value={
+                                          (field.value as
+                                            string | number | undefined) ?? ''
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="col-start-3 row-start-1 mt-5 text-muted-foreground hover:text-destructive"
+                                aria-label={t('items.remove')}
+                                title={t('items.remove')}
+                                onClick={() => {
+                                  removeItem(index)
+                                  revalidateItemsAfterSubmit()
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <FormFieldScope name={`items.${index}.assignees`}>
+                              <FormItem className="mt-3 space-y-2">
+                                <FormLabel className="text-xs text-muted-foreground">
+                                  {t('items.assignees')}
+                                </FormLabel>
+                                <div className="flex flex-wrap gap-2">
+                                  {group.participants.map((participant) => {
+                                    const checked = item.assignees.includes(
+                                      participant.id,
+                                    )
+                                    return (
+                                      <label
+                                        key={participant.id}
+                                        className={cn(
+                                          'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                                          checked
+                                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                                            : 'bg-background text-muted-foreground hover:bg-accent',
+                                        )}
+                                      >
+                                        <Checkbox
+                                          checked={checked}
+                                          className="h-3.5 w-3.5"
+                                          onCheckedChange={(isChecked) => {
+                                            const assignees = isChecked
+                                              ? [
+                                                  ...item.assignees,
+                                                  participant.id,
+                                                ]
+                                              : item.assignees.filter(
+                                                  (id) => id !== participant.id,
+                                                )
+                                            form.setValue(
+                                              `items.${index}.assignees`,
+                                              assignees,
+                                              {
+                                                shouldDirty: true,
+                                                shouldValidate:
+                                                  form.formState.isSubmitted,
+                                              },
+                                            )
+                                            revalidateItemsAfterSubmit()
+                                          }}
+                                        />
+                                        <span className="max-w-40 truncate">
+                                          {participant.name}
+                                        </span>
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            </FormFieldScope>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <FormFieldScope name="items">
+                      <FormMessage className="mt-3" />
+                    </FormFieldScope>
+
+                    {!!itemizedPreview.size && (
+                      <div className="mt-4 rounded-md bg-muted/50 px-3 py-2.5 text-sm">
+                        <div className="flex items-center justify-between gap-3 font-medium">
+                          <span>{t('items.total')}</span>
+                          <span>
+                            {formatCurrency(
+                              groupCurrency,
+                              [...itemizedPreview.values()].reduce(
+                                (sum, value) => sum + value,
+                                0,
+                              ),
+                              locale,
+                            )}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {[...itemizedPreview].map(([id, amount]) => (
+                            <span key={id}>
+                              {group.participants.find((p) => p.id === id)
+                                ?.name ?? id}
+                              : {formatCurrency(groupCurrency, amount, locale)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CollapsibleContent>
             </Collapsible>
           </CardContent>

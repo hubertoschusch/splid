@@ -41,12 +41,22 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { PropsWithChildren, ReactNode, useState } from 'react'
 import { useCurrentGroup } from '../current-group-context'
+import { LocalReceiptScanner } from './local-receipt-scanner'
 
 const MAX_FILE_SIZE = 5 * 1024 ** 2
 
-export function CreateFromReceiptButton() {
+export function CreateFromReceiptButton({
+  enableLocalReceiptOcr = false,
+  enableReceiptExtract = true,
+}: {
+  enableLocalReceiptOcr?: boolean
+  enableReceiptExtract?: boolean
+}) {
   const t = useTranslations('CreateFromReceipt')
   const isDesktop = useMediaQuery('(min-width: 640px)')
+  const [mode, setMode] = useState<'local' | 'cloud'>(
+    enableLocalReceiptOcr ? 'local' : 'cloud',
+  )
 
   const DialogOrDrawer = isDesktop
     ? CreateFromReceiptDialog
@@ -71,9 +81,34 @@ export function CreateFromReceiptButton() {
           </Badge>
         </>
       }
-      description={<>{t('Dialog.description')}</>}
+      description={
+        <>
+          {enableLocalReceiptOcr && t.has('Local.description')
+            ? t('Local.description')
+            : t('Dialog.description')}
+        </>
+      }
     >
-      <ReceiptDialogContent />
+      {enableLocalReceiptOcr && enableReceiptExtract && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === 'local' ? 'default' : 'outline'}
+            onClick={() => setMode('local')}
+          >
+            {t.has('Local.onDevice') ? t('Local.onDevice') : 'On device'}
+          </Button>
+          <Button
+            type="button"
+            variant={mode === 'cloud' ? 'default' : 'outline'}
+            onClick={() => setMode('cloud')}
+          >
+            {t.has('Local.cloud') ? t('Local.cloud') : 'Cloud extraction'}
+          </Button>
+        </div>
+      )}
+      {mode === 'local' && enableLocalReceiptOcr && <LocalReceiptScanner />}
+      {mode === 'cloud' && enableReceiptExtract && <ReceiptDialogContent />}
     </DialogOrDrawer>
   )
 }
@@ -326,14 +361,14 @@ function CreateFromReceiptDrawer({
   return (
     <Drawer>
       <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-      <DrawerContent>
+      <DrawerContent className="max-h-[92dvh]">
         <DrawerHeader>
           <DrawerTitle className="flex items-center gap-2">{title}</DrawerTitle>
           <DrawerDescription className="text-left">
             {description}
           </DrawerDescription>
         </DrawerHeader>
-        <div className="px-4 pb-4">{children}</div>
+        <div className="overflow-y-auto px-4 pb-4">{children}</div>
       </DrawerContent>
     </Drawer>
   )

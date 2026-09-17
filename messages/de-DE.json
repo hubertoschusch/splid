@@ -205,6 +205,16 @@
     "amountField": {
       "label": "Betrag"
     },
+    "items": {
+      "title": "Produkte",
+      "description": "Füge jedes Produkt hinzu und wähle aus, wer daran beteiligt ist.",
+      "name": "Produktname",
+      "price": "Preis",
+      "assignees": "Aufgeteilt auf",
+      "add": "Produkt hinzufügen",
+      "remove": "Produkt entfernen",
+      "total": "Gesamtsumme"
+    },
     "isReimbursementField": {
       "label": "Das ist eine Rückzahlung"
     },
@@ -224,6 +234,7 @@
       "byShares": "Ungleichmäßig – Nach Anteilen",
       "byPercentage": "Ungleichmäßig – Prozentual",
       "byAmount": "Ungleichmäßig – Nach Betrag",
+      "itemized": "Nach Produkte",
       "saveAsDefault": "Als Standard für Aufteilungsoptionen speichern"
     },
     "DeletePopup": {
@@ -274,6 +285,32 @@
     }
   },
   "CreateFromReceipt": {
+    "Local": {
+      "description": "Lies den Gesamtbetrag lokal auf diesem Gerät aus.",
+      "onDevice": "Auf diesem Gerät",
+      "cloud": "Cloud-Erkennung",
+      "privacy": "Das Bild wird auf diesem Gerät gelesen und für die OCR nicht hochgeladen.",
+      "selectImage": "Foto aufnehmen oder Bild auswählen",
+      "takePhoto": "Foto aufnehmen",
+      "chooseGallery": "Aus Galerie wählen",
+      "previewAlt": "Ausgewählter Rechnungsbeleg",
+      "language": "Sprache des Belegs",
+      "noSecondLanguage": "Eine Sprache",
+      "scan": "Lokal scannen",
+      "cancel": "Abbrechen",
+      "amount": "Betrag",
+      "items": "Produkte",
+      "addItem": "Hinzufügen",
+      "itemName": "Produktname",
+      "itemPrice": "Preis",
+      "removeItem": "Produkt entfernen",
+      "itemsMismatch": "Die Produktsumme weicht vom Gesamtbetrag des Belegs ab. Prüfe die Produkte, bevor du fortfährst.",
+      "continue": "Betrag übernehmen",
+      "uncertain": "Es wurde kein verlässlicher Gesamtbetrag gefunden. Wähle einen Vorschlag oder gib den Betrag ein.",
+      "error": "Der Beleg konnte nicht gelesen werden. Versuche es mit einem anderen Bild.",
+      "tooBig": "Das ausgewählte Bild ist zu groß.",
+      "unsupportedImage": "Dieses Bildformat wird von deinem Browser nicht unterstützt. Wähle ein anderes Bild."
+    },
     "Dialog": {
       "triggerTitle": "Ausgabe aus Rechnungsbeleg erstellen",
       "title": "Aus Rechnungsbeleg erstellen",
@@ -364,6 +401,10 @@
     "duplicateParticipantName": "Ein anderer Teilnehmer hat bereits diesen Namen.",
     "titleRequired": "Bitte gib einen Titel an.",
     "invalidNumber": "Ungültige Zahl.",
+    "itemsRequired": "Füge mindestens ein Produkt hinzu.",
+    "itemNameRequired": "Gib einen Produktnamen ein.",
+    "itemPricePositive": "Der Preis muss größer als 0 sein.",
+    "itemAssigneesRequired": "Wähle mindestens eine Person aus.",
     "amountRequired": "Du musst einen Betrag angeben.",
     "amountNotZero": "Der Betrag darf nicht 0 sein.",
     "amountTenMillion": "Der Betrag muss kleiner als 10.000.000 sein.",

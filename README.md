@@ -35,7 +35,7 @@ Spliit is a free and open source alternative to Splitwise. You can either use th
 
 ## Contribute
 
-The project is open to contributions. Feel free to open an issue or even a pull-request! 
+The project is open to contributions. Feel free to open an issue or even a pull-request!
 Join the discussion in [the Spliit Discord server](https://discord.gg/YSyVXbwvSY).
 
 ### Contribute financially
@@ -52,7 +52,7 @@ the project.
 
 ### Translation
 
-The project's translations are managed using [our Weblate project](https://hosted.weblate.org/projects/spliit/spliit/). 
+The project's translations are managed using [our Weblate project](https://hosted.weblate.org/projects/spliit/spliit/).
 You can easily add missing translations to the project or even add a new language!
 Here is the current state of translation:
 
@@ -126,9 +126,9 @@ name: spliit
 services:
   app:
     image: ghcr.io/spliit-app/spliit:latest
-    user: "1000:1000" # change to your user id or remove if you want root
+    user: '1000:1000' # change to your user id or remove if you want root
     ports:
-      - "8080:3000/tcp"
+      - '8080:3000/tcp'
     environment:
       POSTGRES_PRISMA_URL: postgresql://spliit:spliit@database:5432/spliit
       POSTGRES_URL_NON_POOLING: postgresql://spliit:spliit@database:5432/spliit
@@ -141,7 +141,7 @@ services:
 
   database:
     image: postgres:17.3
-    user: "1000:1000" # same as above
+    user: '1000:1000' # same as above
     environment:
       POSTGRES_USER: spliit
       POSTGRES_PASSWORD: spliit
@@ -241,6 +241,26 @@ S3_UPLOAD_ENDPOINT=http://localhost:9000
 ```
 
 ### Create expense from receipt
+
+#### Local receipt OCR
+
+Spliit can read a receipt's total directly in the browser. The image is
+preprocessed and recognized on the user's device; it is not uploaded for OCR,
+and this mode needs neither S3 nor an API key.
+
+Enable it at container runtime:
+
+```.env
+ENABLE_LOCAL_RECEIPT_OCR=true
+```
+
+The scanner supports German, English, Croatian, Bosnian, Serbian (Latin and
+Cyrillic), Slovenian, Italian, French and Spanish. Users select up to two
+languages in the scanner. The corresponding Tesseract language data is loaded
+on demand and cached by the browser. The recognized amount is always shown for
+review before it is copied into the normal expense form.
+
+#### OpenAI receipt extraction
 
 You can offer users to create expense by uploading a receipt. This feature relies on a [vision-capable OpenAI model](https://platform.openai.com/docs/guides/vision) and a public S3 storage endpoint.
 
