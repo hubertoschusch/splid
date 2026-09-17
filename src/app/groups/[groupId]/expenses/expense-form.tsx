@@ -1549,15 +1549,15 @@ export function ExpenseForm({
                         return (
                           <div
                             key={itemField.id}
-                            className="rounded-md border bg-muted/20 p-3"
+                            className="relative rounded-md border bg-muted/20 p-3"
                             data-testid="itemized-row"
                           >
-                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2.5rem] items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.5rem]">
+                            <div className="grid min-w-0 grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)] sm:pr-10">
                               <FormField
                                 control={form.control}
                                 name={`items.${index}.name`}
                                 render={({ field }) => (
-                                  <FormItem className="col-start-1 min-w-0 space-y-1">
+                                  <FormItem className="min-w-0 space-y-1 pr-10 sm:pr-0">
                                     <FormLabel className="text-xs text-muted-foreground">
                                       {t('items.name')}
                                     </FormLabel>
@@ -1578,7 +1578,7 @@ export function ExpenseForm({
                                 control={form.control}
                                 name={`items.${index}.price`}
                                 render={({ field }) => (
-                                  <FormItem className="col-start-1 row-start-2 min-w-0 space-y-1 sm:col-start-2 sm:row-start-1">
+                                  <FormItem className="min-w-0 space-y-1 sm:col-start-2 sm:row-start-1">
                                     <FormLabel className="text-xs text-muted-foreground">
                                       {t('items.price')} ({groupCurrency.code})
                                     </FormLabel>
@@ -1609,7 +1609,7 @@ export function ExpenseForm({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="col-start-2 row-start-1 mt-5 text-muted-foreground hover:text-destructive sm:col-start-3"
+                                className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
                                 aria-label={t('items.remove')}
                                 title={t('items.remove')}
                                 onClick={() => {
