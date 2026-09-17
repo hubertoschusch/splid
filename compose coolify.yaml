@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    expose:
+      - "3000"
+
+    environment:
+      POSTGRES_PRISMA_URL: "postgresql://${SERVICE_USER_DB}:${SERVICE_PASSWORD_64_DB}@${SERVICE_NAME_DB}:5432/spliit"
+      POSTGRES_URL_NON_POOLING: "postgresql://${SERVICE_USER_DB}:${SERVICE_PASSWORD_64_DB}@${SERVICE_NAME_DB}:5432/spliit"
+
+      # Optional:
+      DEFAULT_CURRENCY_CODE: EUR
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17.3
+
+    expose:
+      - "5432"
+
+    environment:
+      POSTGRES_USER: ${SERVICE_USER_DB}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_64_DB}
+      POSTGRES_DB: spliit
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
