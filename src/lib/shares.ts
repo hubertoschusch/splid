@@ -115,7 +115,9 @@ export function getExpenseShares(expense: ShareInput): Map<string, number> {
 
   const shares = match(expense.splitMode)
     .with('EVENLY', () => paidFors.map(() => 1))
-    .with('BY_SHARES', 'BY_PERCENTAGE', 'BY_AMOUNT', () =>
+    // Itemized rows are item-derived integer weights. Apportioning once here
+    // prevents per-item conversion rounding drift.
+    .with('BY_SHARES', 'BY_PERCENTAGE', 'BY_AMOUNT', 'ITEMIZED', () =>
       paidFors.map(({ shares }) => shares),
     )
     .exhaustive()

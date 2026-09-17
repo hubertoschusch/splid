@@ -227,6 +227,16 @@
     "amountField": {
       "label": "Amount"
     },
+    "items": {
+      "title": "Items",
+      "description": "Add each item and select who shares it.",
+      "name": "Item name",
+      "price": "Price",
+      "assignees": "Assigned to",
+      "add": "Add item",
+      "remove": "Remove item",
+      "total": "Itemized total"
+    },
     "conversionUnavailable": "To set a different currency per expense and convert amounts, select a non-custom currency for the group.",
     "originalAmountField": {
       "label": "Amount to convert",
@@ -269,6 +279,7 @@
       "byShares": "Unevenly – By shares",
       "byPercentage": "Unevenly – By percentage",
       "byAmount": "Unevenly – By amount",
+      "itemized": "Itemized",
       "saveAsDefault": "Save as default splitting options"
     },
     "DeletePopup": {

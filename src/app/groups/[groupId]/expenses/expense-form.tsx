@@ -242,6 +242,11 @@ export function ExpenseForm({
                 ? amountAsDecimal(shares, groupCurrency)
                 : (shares / 100).toString(), // Convert to string to ensure consistent handling
           })),
+          items: expense.items.map((item) => ({
+            name: item.name,
+            price: amountAsDecimal(item.price, groupCurrency),
+            assignees: item.assignees.map(({ participantId }) => participantId),
+          })),
           splitMode: expense.splitMode,
           saveDefaultSplittingOptions: false,
           isReimbursement: expense.isReimbursement,
@@ -278,6 +283,7 @@ export function ExpenseForm({
             documents: [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
+            items: [],
           }
         : {
             title: searchParams.get('title') ?? '',
@@ -309,11 +315,30 @@ export function ExpenseForm({
               : [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
+            items: [],
           },
   })
   const [isCategoryLoading, setCategoryLoading] = useState(false)
   const activeUserId = useActiveUser(group.id)
   const sendEvent = useAnalytics()
+  // Preview follows the same integer remainder rule as the server.
+  const itemizedPreview = (() => {
+    const totals = new Map<string, number>()
+    for (const item of form.watch('items') ?? []) {
+      const assignees = [...new Set(item.assignees)].sort()
+      const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
+      if (!assignees.length || price <= 0) continue
+      const each = Math.floor(price / assignees.length)
+      const remainder = price % assignees.length
+      assignees.forEach((id, index) =>
+        totals.set(
+          id,
+          (totals.get(id) ?? 0) + each + (index < remainder ? 1 : 0),
+        ),
+      )
+    }
+    return totals
+  })()
 
   const submit = async (values: ExpenseFormValues) => {
     sendEvent(
@@ -331,6 +356,10 @@ export function ExpenseForm({
         values.splitMode === 'BY_AMOUNT'
           ? amountAsMinorUnits(shares, groupCurrency)
           : shares,
+    }))
+    values.items = values.items.map((item) => ({
+      ...item,
+      price: amountAsMinorUnits(item.price, groupCurrency),
     }))
 
     // Currency should be blank if same as group currency, or if no conversion took place
@@ -888,69 +917,71 @@ export function ExpenseForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field: { onChange, ...field } }) => (
-                <FormItem
-                  className={
-                    convertFromGroupCurrency ? 'sm:order-4' : 'sm:order-5'
-                  }
-                >
-                  <FormLabel>{t('amountField.label')}</FormLabel>
-                  <div className="flex items-baseline gap-2">
-                    <span>{group.currency}</span>
-                    <FormControl>
-                      <Input
-                        className="text-base max-w-[120px]"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        onChange={(event) => {
-                          const v = enforceCurrencyPattern(
-                            event.target.value,
-                            groupCurrency,
-                          )
-                          const income = Number(v) < 0
-                          setIsIncome(income)
-                          if (income) form.setValue('isReimbursement', false)
-                          onChange(v)
-                        }}
-                        onFocus={(e) => {
-                          // we're adding a small delay to get around safaris issue with onMouseUp deselecting things again
-                          const target = e.currentTarget
-                          setTimeout(() => target.select(), 1)
-                        }}
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
+            {form.watch('splitMode') !== 'ITEMIZED' && (
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field: { onChange, ...field } }) => (
+                  <FormItem
+                    className={
+                      convertFromGroupCurrency ? 'sm:order-4' : 'sm:order-5'
+                    }
+                  >
+                    <FormLabel>{t('amountField.label')}</FormLabel>
+                    <div className="flex items-baseline gap-2">
+                      <span>{group.currency}</span>
+                      <FormControl>
+                        <Input
+                          className="text-base max-w-[120px]"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          onChange={(event) => {
+                            const v = enforceCurrencyPattern(
+                              event.target.value,
+                              groupCurrency,
+                            )
+                            const income = Number(v) < 0
+                            setIsIncome(income)
+                            if (income) form.setValue('isReimbursement', false)
+                            onChange(v)
+                          }}
+                          onFocus={(e) => {
+                            // we're adding a small delay to get around safaris issue with onMouseUp deselecting things again
+                            const target = e.currentTarget
+                            setTimeout(() => target.select(), 1)
+                          }}
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
 
-                  {!isIncome && (
-                    <FormField
-                      control={form.control}
-                      name="isReimbursement"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row gap-2 items-center space-y-0 pt-2">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div>
-                            <FormLabel>
-                              {t('isReimbursementField.label')}
-                            </FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </FormItem>
-              )}
-            />
+                    {!isIncome && (
+                      <FormField
+                        control={form.control}
+                        name="isReimbursement"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row gap-2 items-center space-y-0 pt-2">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div>
+                              <FormLabel>
+                                {t('isReimbursementField.label')}
+                              </FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -1420,6 +1451,9 @@ export function ExpenseForm({
                               <SelectItem value="BY_AMOUNT">
                                 {t('SplitModeField.byAmount')}
                               </SelectItem>
+                              <SelectItem value="ITEMIZED">
+                                {t('SplitModeField.itemized')}
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </FormControl>
@@ -1453,6 +1487,134 @@ export function ExpenseForm({
             </Collapsible>
           </CardContent>
         </Card>
+
+        {form.watch('splitMode') === 'ITEMIZED' && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>{t('items.title')}</CardTitle>
+              <CardDescription>{t('items.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(form.watch('items') ?? []).map((item, index) => (
+                <div key={index} className="rounded-md border p-3 space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('items.name')}</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.price`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('items.price')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="any"
+                              {...field}
+                              value={
+                                (field.value as string | number | undefined) ??
+                                ''
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormLabel>{t('items.assignees')}</FormLabel>
+                  <div className="flex flex-wrap gap-3">
+                    {group.participants.map((participant) => (
+                      <label
+                        key={participant.id}
+                        className="flex items-center gap-1 text-sm"
+                      >
+                        <Checkbox
+                          checked={item.assignees.includes(participant.id)}
+                          onCheckedChange={(checked) => {
+                            const assignees = checked
+                              ? [...item.assignees, participant.id]
+                              : item.assignees.filter(
+                                  (id) => id !== participant.id,
+                                )
+                            form.setValue(
+                              `items.${index}.assignees`,
+                              assignees,
+                              { shouldDirty: true, shouldValidate: true },
+                            )
+                          }}
+                        />
+                        {participant.name}
+                      </label>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      form.setValue(
+                        'items',
+                        (form.getValues('items') ?? []).filter(
+                          (_, i) => i !== index,
+                        ),
+                        { shouldDirty: true, shouldValidate: true },
+                      )
+                    }
+                  >
+                    {t('items.remove')}
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  form.setValue(
+                    'items',
+                    [
+                      ...(form.getValues('items') ?? []),
+                      { name: '', price: 0, assignees: [] },
+                    ],
+                    { shouldDirty: true },
+                  )
+                }
+              >
+                {t('items.add')}
+              </Button>
+              <div className="text-sm space-y-1">
+                <div>
+                  {t('items.total')}:{' '}
+                  {formatCurrency(
+                    groupCurrency,
+                    [...itemizedPreview.values()].reduce(
+                      (sum, value) => sum + value,
+                      0,
+                    ),
+                    locale,
+                  )}
+                </div>
+                {[...itemizedPreview].map(([id, amount]) => (
+                  <div key={id}>
+                    {group.participants.find((p) => p.id === id)?.name}:{' '}
+                    {formatCurrency(groupCurrency, amount, locale)}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {runtimeFeatureFlags.enableExpenseDocuments && (
           <Card className="mt-4">
