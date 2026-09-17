@@ -92,23 +92,50 @@ test('creates an itemized expense in the splitting card', async ({ page }) => {
 
   const editor = page.getByTestId('itemized-editor')
   await expect(editor).toBeVisible()
-  await editor.getByRole('button', { name: 'Add item' }).click()
-  await editor.getByRole('button', { name: 'Add item' }).click()
-  await editor.getByRole('button', { name: 'Add item' }).click()
 
+  await submit.click()
+  await expect(editor.getByText('Add at least one item.')).toBeVisible()
+
+  await editor.getByRole('button', { name: 'Add item' }).click()
   const rows = editor.getByTestId('itemized-row')
+  await expect(editor.getByText('Add at least one item.')).toBeHidden()
+  await expect(rows.nth(0).getByText('Enter an item name.')).toBeVisible()
+  await expect(
+    rows.nth(0).getByText('The price must be greater than zero.'),
+  ).toBeVisible()
+  await expect(
+    rows.nth(0).getByText('Select at least one person.'),
+  ).toBeVisible()
+
   await fillStable(rows.nth(0).getByLabel('Item name'), 'Pizza')
-  await fillStable(rows.nth(0).getByLabel('Price'), '12')
+  await expect(rows.nth(0).getByText('Enter an item name.')).toBeHidden()
+  await fillStable(rows.nth(0).getByLabel(/Price/), '12')
+  await expect(
+    rows.nth(0).getByText('The price must be greater than zero.'),
+  ).toBeHidden()
   await rows.nth(0).getByRole('checkbox', { name: 'Alice' }).click()
+  await expect(
+    rows.nth(0).getByText('Select at least one person.'),
+  ).toBeHidden()
   await rows.nth(0).getByRole('checkbox', { name: 'Bob' }).click()
 
-  await fillStable(rows.nth(1).getByLabel('Item name'), 'Juice')
-  await fillStable(rows.nth(1).getByLabel('Price'), '3')
-  await rows.nth(1).getByRole('checkbox', { name: 'Bob' }).click()
-  await rows.nth(1).getByRole('checkbox', { name: 'Carol' }).click()
+  // Keep an invalid row in the middle, then remove it. Errors and values from
+  // the following row must stay attached to the right item.
+  await editor.getByRole('button', { name: 'Add item' }).click()
+  await editor.getByRole('button', { name: 'Add item' }).click()
+  await fillStable(rows.nth(2).getByLabel('Item name'), 'Juice')
+  await fillStable(rows.nth(2).getByLabel(/Price/), '3')
+  await rows.nth(2).getByRole('checkbox', { name: 'Bob' }).click()
+  await rows.nth(2).getByRole('checkbox', { name: 'Carol' }).click()
 
-  await rows.nth(2).getByRole('button', { name: 'Remove item' }).click()
+  await rows.nth(1).getByRole('button', { name: 'Remove item' }).click()
   await expect(rows).toHaveCount(2)
+  await expect(rows.nth(1).getByLabel('Item name')).toHaveValue('Juice')
+  await expect(editor.getByText('Enter an item name.')).toBeHidden()
+  await expect(
+    editor.getByText('The price must be greater than zero.'),
+  ).toBeHidden()
+  await expect(editor.getByText('Select at least one person.')).toBeHidden()
   await expect(editor.getByText('Itemized total')).toBeVisible()
 
   await submit.click()

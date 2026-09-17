@@ -69,7 +69,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
 import { extractCategoryFromTitle } from '../../../../components/expense-form-actions'
@@ -215,6 +215,8 @@ export function ExpenseForm({
   const groupCurrency = getCurrencyFromGroup(group)
   const form = useForm<ExpenseFormInput, any, ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     defaultValues: expense
       ? {
           title: expense.title,
@@ -318,13 +320,27 @@ export function ExpenseForm({
             items: [],
           },
   })
+  const {
+    fields: itemFields,
+    append: appendItem,
+    remove: removeItem,
+  } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  })
+  const watchedItems = form.watch('items') ?? []
+
+  const revalidateItemsAfterSubmit = () => {
+    if (!form.formState.isSubmitted) return
+    queueMicrotask(() => void form.trigger('items'))
+  }
   const [isCategoryLoading, setCategoryLoading] = useState(false)
   const activeUserId = useActiveUser(group.id)
   const sendEvent = useAnalytics()
   // Preview follows the same integer remainder rule as the server.
   const itemizedPreview = (() => {
     const totals = new Map<string, number>()
-    for (const item of form.watch('items') ?? []) {
+    for (const item of watchedItems) {
       const assignees = [...new Set(item.assignees)].sort()
       const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
       if (!assignees.length || price <= 0) continue
@@ -1489,7 +1505,7 @@ export function ExpenseForm({
                     className="mt-5 border-t pt-5"
                     data-testid="itemized-editor"
                   >
-                    <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
                       <div className="space-y-1">
                         <h3 className="text-sm font-semibold">
                           {t('items.title')}
@@ -1503,16 +1519,10 @@ export function ExpenseForm({
                         variant="outline"
                         size="sm"
                         className="shrink-0"
-                        onClick={() =>
-                          form.setValue(
-                            'items',
-                            [
-                              ...(form.getValues('items') ?? []),
-                              { name: '', price: 0, assignees: [] },
-                            ],
-                            { shouldDirty: true, shouldValidate: true },
-                          )
-                        }
+                        onClick={() => {
+                          appendItem({ name: '', price: 0, assignees: [] })
+                          revalidateItemsAfterSubmit()
+                        }}
                       >
                         <Plus className="mr-1.5 h-4 w-4" />
                         {t('items.add')}
@@ -1520,131 +1530,140 @@ export function ExpenseForm({
                     </div>
 
                     <div className="space-y-3">
-                      {(form.watch('items') ?? []).map((item, index) => (
-                        <div
-                          key={index}
-                          className="rounded-md border bg-muted/20 p-3"
-                          data-testid="itemized-row"
-                        >
-                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.25rem] items-start gap-2">
-                            <FormField
-                              control={form.control}
-                              name={`items.${index}.name`}
-                              render={({ field }) => (
-                                <FormItem className="col-span-2 space-y-1 sm:col-span-1">
-                                  <FormLabel className="text-xs text-muted-foreground">
-                                    {t('items.name')}
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name={`items.${index}.price`}
-                              render={({ field }) => (
-                                <FormItem className="col-span-2 space-y-1 sm:col-span-1">
-                                  <FormLabel className="text-xs text-muted-foreground">
-                                    {t('items.price')}
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step={10 ** -groupCurrency.decimal_digits}
-                                      inputMode="decimal"
-                                      {...field}
-                                      value={
-                                        (field.value as
-                                          string | number | undefined) ?? ''
-                                      }
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="col-start-3 row-start-1 mt-5 text-muted-foreground hover:text-destructive"
-                              aria-label={t('items.remove')}
-                              title={t('items.remove')}
-                              onClick={() =>
-                                form.setValue(
-                                  'items',
-                                  (form.getValues('items') ?? []).filter(
-                                    (_, i) => i !== index,
-                                  ),
-                                  {
-                                    shouldDirty: true,
-                                    shouldValidate: true,
-                                  },
-                                )
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-
-                          <FormFieldScope name={`items.${index}.assignees`}>
-                            <FormItem className="mt-3 space-y-2">
-                              <FormLabel className="text-xs text-muted-foreground">
-                                {t('items.assignees')}
-                              </FormLabel>
-                              <div className="flex flex-wrap gap-2">
-                                {group.participants.map((participant) => {
-                                  const checked = item.assignees.includes(
-                                    participant.id,
-                                  )
-                                  return (
-                                    <label
-                                      key={participant.id}
-                                      className={cn(
-                                        'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
-                                        checked
-                                          ? 'border-primary/40 bg-primary/10 text-foreground'
-                                          : 'bg-background text-muted-foreground hover:bg-accent',
-                                      )}
-                                    >
-                                      <Checkbox
-                                        checked={checked}
-                                        className="h-3.5 w-3.5"
-                                        onCheckedChange={(isChecked) => {
-                                          const assignees = isChecked
-                                            ? [
-                                                ...item.assignees,
-                                                participant.id,
-                                              ]
-                                            : item.assignees.filter(
-                                                (id) => id !== participant.id,
-                                              )
-                                          form.setValue(
-                                            `items.${index}.assignees`,
-                                            assignees,
-                                            {
-                                              shouldDirty: true,
-                                              shouldValidate: true,
-                                            },
-                                          )
+                      {itemFields.map((itemField, index) => {
+                        const item = watchedItems[index] ?? itemField
+                        return (
+                          <div
+                            key={itemField.id}
+                            className="rounded-md border bg-muted/20 p-3"
+                            data-testid="itemized-row"
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.45fr)_2.25rem] items-start gap-2">
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.name`}
+                                render={({ field }) => (
+                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                    <FormLabel className="text-xs text-muted-foreground">
+                                      {t('items.name')}
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        onChange={(event) => {
+                                          field.onChange(event)
+                                          revalidateItemsAfterSubmit()
                                         }}
                                       />
-                                      <span className="max-w-40 truncate">
-                                        {participant.name}
-                                      </span>
-                                    </label>
-                                  )
-                                })}
-                              </div>
-                              <FormMessage />
-                            </FormItem>
-                          </FormFieldScope>
-                        </div>
-                      ))}
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.price`}
+                                render={({ field }) => (
+                                  <FormItem className="col-span-2 space-y-1 sm:col-span-1">
+                                    <FormLabel className="text-xs text-muted-foreground">
+                                      {t('items.price')} ({groupCurrency.code})
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step={
+                                          10 ** -groupCurrency.decimal_digits
+                                        }
+                                        inputMode="decimal"
+                                        {...field}
+                                        onChange={(event) => {
+                                          field.onChange(event)
+                                          revalidateItemsAfterSubmit()
+                                        }}
+                                        value={
+                                          (field.value as
+                                            string | number | undefined) ?? ''
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="col-start-3 row-start-1 mt-5 text-muted-foreground hover:text-destructive"
+                                aria-label={t('items.remove')}
+                                title={t('items.remove')}
+                                onClick={() => {
+                                  removeItem(index)
+                                  revalidateItemsAfterSubmit()
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <FormFieldScope name={`items.${index}.assignees`}>
+                              <FormItem className="mt-3 space-y-2">
+                                <FormLabel className="text-xs text-muted-foreground">
+                                  {t('items.assignees')}
+                                </FormLabel>
+                                <div className="flex flex-wrap gap-2">
+                                  {group.participants.map((participant) => {
+                                    const checked = item.assignees.includes(
+                                      participant.id,
+                                    )
+                                    return (
+                                      <label
+                                        key={participant.id}
+                                        className={cn(
+                                          'flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                                          checked
+                                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                                            : 'bg-background text-muted-foreground hover:bg-accent',
+                                        )}
+                                      >
+                                        <Checkbox
+                                          checked={checked}
+                                          className="h-3.5 w-3.5"
+                                          onCheckedChange={(isChecked) => {
+                                            const assignees = isChecked
+                                              ? [
+                                                  ...item.assignees,
+                                                  participant.id,
+                                                ]
+                                              : item.assignees.filter(
+                                                  (id) => id !== participant.id,
+                                                )
+                                            form.setValue(
+                                              `items.${index}.assignees`,
+                                              assignees,
+                                              {
+                                                shouldDirty: true,
+                                                shouldValidate:
+                                                  form.formState.isSubmitted,
+                                              },
+                                            )
+                                            revalidateItemsAfterSubmit()
+                                          }}
+                                        />
+                                        <span className="max-w-40 truncate">
+                                          {participant.name}
+                                        </span>
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            </FormFieldScope>
+                          </div>
+                        )
+                      })}
                     </div>
 
                     <FormFieldScope name="items">
