@@ -28,12 +28,22 @@ export async function recognizeReceipt(
     terminated = true
     await worker.terminate()
   }
-  const abort = () => void terminate()
+  let rejectAbort: ((reason: DOMException) => void) | undefined
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAbort = reject
+  })
+  const abort = () => {
+    rejectAbort?.(new DOMException('Aborted', 'AbortError'))
+    void terminate()
+  }
   signal?.addEventListener('abort', abort, { once: true })
 
   try {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    const result = await worker.recognize(image)
+    const recognition = worker.recognize(image)
+    const result = await (signal
+      ? Promise.race([recognition, aborted])
+      : recognition)
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     return { text: result.data.text, confidence: result.data.confidence }
   } finally {
