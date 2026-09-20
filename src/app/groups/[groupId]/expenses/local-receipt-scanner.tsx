@@ -75,6 +75,10 @@ export function LocalReceiptScanner() {
   const [languages, setLanguages] = useState<ReceiptOcrLanguageCode[]>(() =>
     initialLanguages(locale),
   )
+  const [automaticLanguage, setAutomaticLanguage] = useState(true)
+  const [detectedLanguages, setDetectedLanguages] = useState<
+    ReceiptOcrLanguageCode[]
+  >([])
   const [progress, setProgress] = useState(0)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -114,10 +118,16 @@ export function LocalReceiptScanner() {
     setAmount('')
     setCurrency(null)
     setItems([])
+    setDetectedLanguages([])
     setError(null)
   }
 
   const updateLanguage = (index: number, value: string) => {
+    if (value === 'auto') {
+      setAutomaticLanguage(true)
+      return
+    }
+    setAutomaticLanguage(false)
     const next = [...languages]
     if (value === 'none') next.splice(index, 1)
     else if (isReceiptOcrLanguageCode(value)) next[index] = value
@@ -127,12 +137,13 @@ export function LocalReceiptScanner() {
   }
 
   const scan = async () => {
-    if (!file || languages.length === 0) return
+    if (!file || (!automaticLanguage && languages.length === 0)) return
     setPending(true)
     setError(null)
     setProgress(0)
     setCandidates([])
     setItems([])
+    setDetectedLanguages([])
     const controller = new AbortController()
     abortRef.current = controller
     sendEvent(
@@ -141,20 +152,51 @@ export function LocalReceiptScanner() {
     )
 
     try {
-      const [{ preprocessReceiptImage }, { recognizeReceipt }] =
-        await Promise.all([
-          import('@/lib/receipt-ocr/preprocess'),
-          import('@/lib/receipt-ocr/recognize'),
-        ])
+      const [
+        { preprocessReceiptImage },
+        { recognizeReceipt },
+        { detectReceiptLanguages },
+      ] = await Promise.all([
+        import('@/lib/receipt-ocr/preprocess'),
+        import('@/lib/receipt-ocr/recognize'),
+        import('@/lib/receipt-ocr/detect-language'),
+      ])
       const processed = await preprocessReceiptImage(file)
-      const recognized = await recognizeReceipt(
+      const pilotLanguages: ReceiptOcrLanguageCode[] = automaticLanguage
+        ? ['eng', 'srp']
+        : languages
+      let recognized = await recognizeReceipt(
         processed,
-        languages,
-        ({ progress: nextProgress }) => setProgress(nextProgress),
+        pilotLanguages,
+        ({ progress: nextProgress }) =>
+          setProgress(automaticLanguage ? nextProgress * 0.45 : nextProgress),
         controller.signal,
       )
-      const parsed = parseReceiptTotal(recognized.text, languages)
-      setItems(parseReceiptItems(recognized.text))
+      const receiptLanguages = automaticLanguage
+        ? detectReceiptLanguages(recognized.text, locale)
+        : languages
+      setDetectedLanguages(receiptLanguages)
+      if (
+        automaticLanguage &&
+        receiptLanguages.join('+') !== pilotLanguages.join('+')
+      ) {
+        recognized = await recognizeReceipt(
+          processed,
+          receiptLanguages,
+          ({ progress: nextProgress }) =>
+            setProgress(0.45 + nextProgress * 0.55),
+          controller.signal,
+        )
+      }
+      const parsed = parseReceiptTotal(recognized.text, receiptLanguages)
+      setItems(
+        parsed.best
+          ? parseReceiptItems(recognized.text, {
+              lines: recognized.lines,
+              expectedTotal: parsed.best.amount,
+            })
+          : [],
+      )
       setCandidates(parsed.candidates)
       if (parsed.best) {
         setAmount(parsed.best.amount)
@@ -254,14 +296,23 @@ export function LocalReceiptScanner() {
         {[0, 1].map((index) => (
           <Select
             key={index}
-            value={languages[index] ?? 'none'}
+            value={
+              automaticLanguage && index === 0
+                ? 'auto'
+                : (languages[index] ?? 'none')
+            }
             onValueChange={(value) => updateLanguage(index, value)}
-            disabled={pending}
+            disabled={pending || (automaticLanguage && index === 1)}
           >
             <SelectTrigger aria-label={tr('language', 'Receipt language')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {index === 0 && (
+                <SelectItem value="auto">
+                  {tr('automaticLanguage', 'Detect automatically')}
+                </SelectItem>
+              )}
               {index === 1 && (
                 <SelectItem value="none">
                   {tr('noSecondLanguage', 'One language')}
@@ -279,6 +330,19 @@ export function LocalReceiptScanner() {
           </Select>
         ))}
       </div>
+
+      {detectedLanguages.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {tr('detectedLanguage', 'Detected language')}:{' '}
+          {detectedLanguages
+            .map(
+              (code) =>
+                RECEIPT_OCR_LANGUAGES.find((language) => language.code === code)
+                  ?.label ?? code,
+            )
+            .join(' + ')}
+        </p>
+      )}
 
       {pending && (
         <div className="space-y-2" aria-live="polite">
@@ -299,7 +363,11 @@ export function LocalReceiptScanner() {
       )}
 
       {!pending && file && (
-        <Button type="button" onClick={scan} disabled={languages.length === 0}>
+        <Button
+          type="button"
+          onClick={scan}
+          disabled={!automaticLanguage && languages.length === 0}
+        >
           <ScanText className="mr-2 size-4" /> {tr('scan', 'Scan locally')}
         </Button>
       )}

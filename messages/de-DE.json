@@ -295,6 +295,8 @@
       "chooseGallery": "Aus Galerie wählen",
       "previewAlt": "Ausgewählter Rechnungsbeleg",
       "language": "Sprache des Belegs",
+      "automaticLanguage": "Automatisch erkennen",
+      "detectedLanguage": "Erkannte Sprache",
       "noSecondLanguage": "Eine Sprache",
       "scan": "Lokal scannen",
       "cancel": "Abbrechen",

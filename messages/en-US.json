@@ -319,6 +319,8 @@
       "chooseGallery": "Choose from gallery",
       "previewAlt": "Selected receipt",
       "language": "Receipt language",
+      "automaticLanguage": "Detect automatically",
+      "detectedLanguage": "Detected language",
       "noSecondLanguage": "One language",
       "scan": "Scan locally",
       "cancel": "Cancel",

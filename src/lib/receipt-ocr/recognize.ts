@@ -40,12 +40,26 @@ export async function recognizeReceipt(
 
   try {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    const recognition = worker.recognize(image)
+    const recognition = worker.recognize(
+      image,
+      { rotateAuto: true },
+      { text: true, blocks: true },
+    )
     const result = await (signal
       ? Promise.race([recognition, aborted])
       : recognition)
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    return { text: result.data.text, confidence: result.data.confidence }
+    const lines =
+      result.data.blocks?.flatMap((block) =>
+        block.paragraphs.flatMap((paragraph) =>
+          paragraph.lines.map(({ text, confidence, bbox }) => ({
+            text: text.trim(),
+            confidence,
+            bbox,
+          })),
+        ),
+      ) ?? []
+    return { text: result.data.text, confidence: result.data.confidence, lines }
   } finally {
     signal?.removeEventListener('abort', abort)
     await terminate()

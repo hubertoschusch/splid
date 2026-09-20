@@ -27,4 +27,11 @@ export type ReceiptOcrProgress = {
 export type ReceiptOcrText = {
   text: string
   confidence: number
+  lines: ReceiptOcrLine[]
+}
+
+export type ReceiptOcrLine = {
+  text: string
+  confidence: number
+  bbox: { x0: number; y0: number; x1: number; y1: number }
 }
