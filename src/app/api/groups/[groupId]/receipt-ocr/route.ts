@@ -23,7 +23,7 @@ function isRateLimited(key: string) {
   return recent.length > RATE_LIMIT_REQUESTS
 }
 
-async function readLimitedBody(request: Request) {
+async function readLimitedBody(request: Request, contentType: string) {
   const declaredLength = Number(request.headers.get('content-length'))
   if (Number.isFinite(declaredLength) && declaredLength > MAX_FILE_SIZE)
     throw new Response(null, { status: 413 })
@@ -46,7 +46,7 @@ async function readLimitedBody(request: Request) {
     await reader.cancel().catch(() => undefined)
     throw caught
   }
-  return new Blob(chunks)
+  return new Blob(chunks, { type: contentType })
 }
 
 export async function POST(
@@ -81,7 +81,7 @@ export async function POST(
 
   let file: Blob
   try {
-    file = await readLimitedBody(request)
+    file = await readLimitedBody(request, contentType)
   } catch (caught) {
     if (caught instanceof Response && caught.status === 413)
       return error('The receipt image is too large.', 413)
