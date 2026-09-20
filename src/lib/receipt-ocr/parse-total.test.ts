@@ -31,6 +31,14 @@ describe('parseReceiptTotal', () => {
     expect(result.best).toMatchObject({ amount: '125.00', currency: 'EUR' })
   })
 
+  it('extracts the total from the supplied multi-quantity Interspar receipt', () => {
+    const result = parseReceiptTotal(
+      'BIJELA KOBASICA 300 g 5,38 A\n2 x 2,69\nUKUPNO 5,38\nPLAĆANJE MASTERCARD 5,38\nosnovica 4,30 iznos 1,08 ukupno 5,38 A',
+      ['hrv'],
+    )
+    expect(result.best?.amount).toBe('5.38')
+  })
+
   it('handles Croatian text without diacritics', () => {
     const result = parseReceiptTotal('Meduzbroj 10,00\nSveukupno 12,50 EUR', [
       'hrv',

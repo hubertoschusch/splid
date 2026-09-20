@@ -101,6 +101,20 @@ describe('parseReceiptItems', () => {
     ).toEqual([{ name: 'PIZZA ŠUNKA SPAR 330 g', price: '2.79' }])
   })
 
+  it('uses the line total for a multi-quantity Interspar product', () => {
+    const receipt = `
+BIJELA KOBASICA 300 g 5,38 A
+2 x 2,69
+UKUPNO 5,38
+PLAĆANJE MASTERCARD 5,38
+osnovica 4,30 iznos 1,08 ukupno 5,38 A
+`
+
+    expect(parseReceiptItems(receipt, { expectedTotal: '5.38' })).toEqual([
+      { name: 'BIJELA KOBASICA 300 g', price: '5.38' },
+    ])
+  })
+
   it('joins a product name with a price split into the next OCR line', () => {
     expect(
       parseReceiptItems('', {
