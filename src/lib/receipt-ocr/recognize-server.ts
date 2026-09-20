@@ -1,7 +1,7 @@
 import { ReceiptOcrLanguageCode, ReceiptOcrText } from './types'
 
 export async function recognizeReceiptOnServer(
-  file: File,
+  file: Blob,
   groupId: string,
   languages: ReceiptOcrLanguageCode[],
   signal?: AbortSignal,
