@@ -44,6 +44,7 @@ import {
 } from '@/lib/currency-conversion'
 import { RuntimeFeatureFlags } from '@/lib/featureFlags'
 import { useActiveUser, useCurrencyRate } from '@/lib/hooks'
+import { itemizedShares } from '@/lib/itemized'
 import { randomId } from '@/lib/random'
 import { readReceiptDraft } from '@/lib/receipt-ocr/receipt-draft'
 import {
@@ -354,21 +355,19 @@ export function ExpenseForm({
   const sendEvent = useAnalytics()
   // Preview follows the same integer remainder rule as the server.
   const itemizedPreview = (() => {
-    const totals = new Map<string, number>()
-    for (const item of watchedItems) {
-      const assignees = [...new Set(item.assignees)].sort()
-      const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
-      if (!assignees.length || price === 0) continue
-      const each = Math.floor(price / assignees.length)
-      const remainder = price % assignees.length
-      assignees.forEach((id, index) =>
-        totals.set(
-          id,
-          (totals.get(id) ?? 0) + each + (index < remainder ? 1 : 0),
-        ),
+    const validItems = watchedItems
+      .map((item) => ({
+        ...item,
+        price: amountAsMinorUnits(Number(item.price) || 0, groupCurrency),
+      }))
+      .filter(
+        (item) => item.name.trim() && item.assignees.length && item.price !== 0,
       )
-    }
-    return totals
+    return new Map(
+      itemizedShares(validItems).map(
+        ({ participant, shares }) => [participant, shares] as const,
+      ),
+    )
   })()
 
   const submit = async (values: ExpenseFormValues) => {
