@@ -44,6 +44,7 @@ import {
 } from '@/lib/currency-conversion'
 import { RuntimeFeatureFlags } from '@/lib/featureFlags'
 import { useActiveUser, useCurrencyRate } from '@/lib/hooks'
+import { itemizedShares } from '@/lib/itemized'
 import { randomId } from '@/lib/random'
 import { readReceiptDraft } from '@/lib/receipt-ocr/receipt-draft'
 import {
@@ -69,7 +70,7 @@ import { ChevronRight, Plus, Save, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
@@ -195,17 +196,8 @@ export function ExpenseForm({
   const locale = useLocale() as Locale
   const isCreate = expense === undefined
   const searchParams = useSearchParams()
-  const receiptDraft = useMemo(
-    () =>
-      typeof window === 'undefined'
-        ? null
-        : readReceiptDraft(
-            searchParams.get('receiptDraft'),
-            group.id,
-            new Set(group.participants.map(({ id }) => id)),
-          ),
-    [group.id, group.participants, searchParams],
-  )
+  const receiptDraftId = searchParams.get('receiptDraft')
+  const loadedReceiptDraftId = useRef<string | null>(null)
 
   /** Whether the form was opened from a suggested reimbursement ("Mark as paid"). */
   const isRepayment = isCreate && !!searchParams.get('reimbursement')
@@ -304,8 +296,7 @@ export function ExpenseForm({
             expenseDate: searchParams.get('date')
               ? new Date(searchParams.get('date') as string)
               : getTodayForDateInput(),
-            amount:
-              Number(receiptDraft?.amount ?? searchParams.get('amount')) || 0,
+            amount: Number(searchParams.get('amount')) || 0,
             originalCurrency: group.currencyCode ?? undefined,
             originalAmount: undefined,
             conversionRate: undefined,
@@ -316,9 +307,7 @@ export function ExpenseForm({
             paidFor: defaultSplittingOptions.paidFor,
             paidBy: getSelectedPayer(),
             isReimbursement: false,
-            splitMode: receiptDraft
-              ? 'ITEMIZED'
-              : defaultSplittingOptions.splitMode,
+            splitMode: defaultSplittingOptions.splitMode,
             saveDefaultSplittingOptions: false,
             documents: searchParams.get('imageUrl')
               ? [
@@ -332,7 +321,7 @@ export function ExpenseForm({
               : [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
-            items: receiptDraft?.items ?? [],
+            items: [],
           },
   })
   const {
@@ -345,6 +334,24 @@ export function ExpenseForm({
   })
   const watchedItems = form.watch('items') ?? []
 
+  useEffect(() => {
+    if (!receiptDraftId || loadedReceiptDraftId.current === receiptDraftId)
+      return
+    loadedReceiptDraftId.current = receiptDraftId
+    const draft = readReceiptDraft(
+      receiptDraftId,
+      group.id,
+      new Set(group.participants.map(({ id }) => id)),
+    )
+    if (!draft) return
+    form.reset({
+      ...form.getValues(),
+      amount: Number(draft.amount),
+      splitMode: 'ITEMIZED',
+      items: draft.items,
+    })
+  }, [form, group.id, group.participants, receiptDraftId])
+
   const revalidateItemsAfterSubmit = () => {
     if (!form.formState.isSubmitted) return
     queueMicrotask(() => void form.trigger('items'))
@@ -354,21 +361,19 @@ export function ExpenseForm({
   const sendEvent = useAnalytics()
   // Preview follows the same integer remainder rule as the server.
   const itemizedPreview = (() => {
-    const totals = new Map<string, number>()
-    for (const item of watchedItems) {
-      const assignees = [...new Set(item.assignees)].sort()
-      const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
-      if (!assignees.length || price <= 0) continue
-      const each = Math.floor(price / assignees.length)
-      const remainder = price % assignees.length
-      assignees.forEach((id, index) =>
-        totals.set(
-          id,
-          (totals.get(id) ?? 0) + each + (index < remainder ? 1 : 0),
-        ),
+    const validItems = watchedItems
+      .map((item) => ({
+        ...item,
+        price: amountAsMinorUnits(Number(item.price) || 0, groupCurrency),
+      }))
+      .filter(
+        (item) => item.name.trim() && item.assignees.length && item.price !== 0,
       )
-    }
-    return totals
+    return new Map(
+      itemizedShares(validItems).map(
+        ({ participant, shares }) => [participant, shares] as const,
+      ),
+    )
   })()
 
   const submit = async (values: ExpenseFormValues) => {
@@ -1620,7 +1625,6 @@ export function ExpenseForm({
                                     <FormControl>
                                       <Input
                                         type="number"
-                                        min="0"
                                         step={
                                           10 ** -groupCurrency.decimal_digits
                                         }

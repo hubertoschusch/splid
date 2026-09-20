@@ -39,7 +39,7 @@ export function normalizeReceiptAmount(raw: string): string | null {
 
   if (!/^-?\d+(?:\.\d{1,2})?$/.test(normalized)) return null
   const amount = Number(normalized)
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000)
+  if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 10_000_000)
     return null
   return amount.toFixed(
     normalized.includes('.') ? normalized.split('.')[1].length : 0,
@@ -79,7 +79,7 @@ export function parseReceiptTotal(
 
     for (const match of line.matchAll(amountPattern)) {
       const amount = normalizeReceiptAmount(match[2])
-      if (!amount) continue
+      if (!amount || Number(amount) <= 0) continue
       let score = 5
       if (strongTotal) score += 70
       else if (total) score += 45

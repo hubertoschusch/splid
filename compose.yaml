@@ -7,6 +7,27 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      receipt-ai:
+        condition: service_healthy
+    environment:
+      ENABLE_LOCAL_RECEIPT_OCR: "true"
+      PADDLEOCR_URL: http://receipt-ai:8080
+
+  receipt-ai:
+    build: ./receipt-ai
+    expose:
+      - 8080
+    environment:
+      PADDLEOCR_LANG: ${PADDLEOCR_LANG:-german}
+      PADDLEOCR_CPU_THREADS: ${PADDLEOCR_CPU_THREADS:-4}
+    volumes:
+      - paddleocr-models:/root/.paddlex
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 120s
 
   db:
     image: postgres:latest
@@ -19,3 +40,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+volumes:
+  paddleocr-models:

@@ -73,6 +73,11 @@ const envSchema = z
       interpretEnvVarAsBool,
       z.boolean().default(false),
     ),
+    PADDLEOCR_URL: z.preprocess(
+      interpretBlankEnvVarAsUndefined,
+      z.string().trim().url().optional(),
+    ),
+    PADDLEOCR_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
     NEXT_PUBLIC_ENABLE_CATEGORY_EXTRACT: z.preprocess(
       interpretEnvVarAsBool,
       z.boolean().default(false),

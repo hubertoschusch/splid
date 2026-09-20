@@ -14,7 +14,10 @@ import {
   isReceiptOcrLanguageCode,
   suggestReceiptOcrLanguage,
 } from '@/lib/receipt-ocr/languages'
-import { ReceiptItem, parseReceiptItems } from '@/lib/receipt-ocr/parse-items'
+import {
+  ReceiptItem,
+  parseReceiptItemsDetailed,
+} from '@/lib/receipt-ocr/parse-items'
 import {
   ReceiptAmountCandidate,
   parseReceiptTotal,
@@ -59,7 +62,11 @@ function initialLanguages(locale: string): ReceiptOcrLanguageCode[] {
   return [suggestReceiptOcrLanguage(locale)]
 }
 
-export function LocalReceiptScanner() {
+export function LocalReceiptScanner({
+  serverOcr = false,
+}: {
+  serverOcr?: boolean
+}) {
   const locale = useLocale()
   const t = useTranslations('CreateFromReceipt')
   const tr = (key: string, fallback: string) =>
@@ -161,27 +168,44 @@ export function LocalReceiptScanner() {
         import('@/lib/receipt-ocr/recognize'),
         import('@/lib/receipt-ocr/detect-language'),
       ])
-      const processed = await preprocessReceiptImage(file)
       const pilotLanguages: ReceiptOcrLanguageCode[] = automaticLanguage
         ? ['eng', 'srp']
         : languages
-      let recognized = await recognizeReceipt(
-        processed,
-        pilotLanguages,
-        ({ progress: nextProgress }) =>
-          setProgress(automaticLanguage ? nextProgress * 0.45 : nextProgress),
-        controller.signal,
-      )
+      let usedServer = serverOcr
+      let processed: Blob | null = null
+      let recognized
+      try {
+        if (!serverOcr) throw new Error('Use browser OCR.')
+        recognized = await (
+          await import('@/lib/receipt-ocr/recognize-server')
+        ).recognizeReceiptOnServer(file, groupId, languages, controller.signal)
+      } catch (serverError) {
+        if (
+          serverError instanceof DOMException &&
+          serverError.name === 'AbortError'
+        )
+          throw serverError
+        usedServer = false
+        processed = await preprocessReceiptImage(file)
+        recognized = await recognizeReceipt(
+          processed,
+          pilotLanguages,
+          ({ progress: nextProgress }) =>
+            setProgress(automaticLanguage ? nextProgress * 0.45 : nextProgress),
+          controller.signal,
+        )
+      }
       const receiptLanguages = automaticLanguage
         ? detectReceiptLanguages(recognized.text, locale)
         : languages
       setDetectedLanguages(receiptLanguages)
       if (
+        !usedServer &&
         automaticLanguage &&
         receiptLanguages.join('+') !== pilotLanguages.join('+')
       ) {
         recognized = await recognizeReceipt(
-          processed,
+          processed!,
           receiptLanguages,
           ({ progress: nextProgress }) =>
             setProgress(0.45 + nextProgress * 0.55),
@@ -189,14 +213,13 @@ export function LocalReceiptScanner() {
         )
       }
       const parsed = parseReceiptTotal(recognized.text, receiptLanguages)
-      setItems(
-        parsed.best
-          ? parseReceiptItems(recognized.text, {
-              lines: recognized.lines,
-              expectedTotal: parsed.best.amount,
-            })
-          : [],
-      )
+      const parsedItems = parsed.best
+        ? parseReceiptItemsDetailed(recognized.text, {
+            lines: recognized.lines,
+            expectedTotal: parsed.best.amount,
+          })
+        : null
+      setItems(parsedItems?.items ?? [])
       setCandidates(parsed.candidates)
       if (parsed.best) {
         setAmount(parsed.best.amount)
@@ -237,10 +260,15 @@ export function LocalReceiptScanner() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        {tr(
-          'privacy',
-          'The image is read on this device and is not uploaded for OCR.',
-        )}
+        {serverOcr
+          ? tr(
+              'serverPrivacy',
+              'The image is analyzed by the private OCR service on this server.',
+            )
+          : tr(
+              'privacy',
+              'The image is read on this device and is not uploaded for OCR.',
+            )}
       </p>
 
       <input
@@ -368,7 +396,10 @@ export function LocalReceiptScanner() {
           onClick={scan}
           disabled={!automaticLanguage && languages.length === 0}
         >
-          <ScanText className="mr-2 size-4" /> {tr('scan', 'Scan locally')}
+          <ScanText className="mr-2 size-4" />
+          {serverOcr
+            ? tr('scanServer', 'Scan on server')
+            : tr('scan', 'Scan locally')}
         </Button>
       )}
 
@@ -487,7 +518,17 @@ export function LocalReceiptScanner() {
           pending ||
           !Number.isFinite(Number(amount)) ||
           Number(amount) <= 0 ||
-          items.some((item) => !item.name.trim() || Number(item.price) <= 0)
+          items.some(
+            (item) =>
+              !item.name.trim() ||
+              !Number.isFinite(Number(item.price)) ||
+              Number(item.price) === 0,
+          ) ||
+          (items.length > 0 &&
+            Math.abs(
+              items.reduce((sum, item) => sum + (Number(item.price) || 0), 0) -
+                Number(amount),
+            ) > 0.01)
         }
         onClick={() => {
           sendEvent(
@@ -495,7 +536,10 @@ export function LocalReceiptScanner() {
             `/groups/${groupId}/expenses`,
           )
           const validItems = items.filter(
-            (item) => item.name.trim() && Number(item.price) > 0,
+            (item) =>
+              item.name.trim() &&
+              Number.isFinite(Number(item.price)) &&
+              Number(item.price) !== 0,
           )
           if (validItems.length && group) {
             const draftId = writeReceiptDraft({
@@ -513,9 +557,13 @@ export function LocalReceiptScanner() {
               )
               return
             }
-            router.push(
-              `/groups/${groupId}/expenses/create?amount=${encodeURIComponent(amount)}`,
+            setError(
+              tr(
+                'draftError',
+                'The recognized products could not be transferred. Check browser storage permissions and try again.',
+              ),
             )
+            return
           } else {
             router.push(
               `/groups/${groupId}/expenses/create?amount=${encodeURIComponent(amount)}`,

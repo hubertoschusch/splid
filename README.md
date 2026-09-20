@@ -260,6 +260,24 @@ languages in the scanner. The corresponding Tesseract language data is loaded
 on demand and cached by the browser. The recognized amount is always shown for
 review before it is copied into the normal expense form.
 
+To recognize product rows with the bundled CPU-only PaddleOCR service, set
+`PADDLEOCR_URL`. The standard Compose files enable it automatically and keep
+the service private inside the Compose network:
+
+```.env
+ENABLE_LOCAL_RECEIPT_OCR=true
+PADDLEOCR_URL=http://receipt-ai:8080
+PADDLEOCR_TIMEOUT_MS=180000
+PADDLEOCR_LANG=german
+PADDLEOCR_CPU_THREADS=4
+```
+
+The model is downloaded into the persistent `paddleocr-models` volume on first
+startup. CPU inference can take considerably longer than browser OCR. If the
+service is unavailable, busy, or configured for a different selected language,
+the scanner falls back to its on-device Tesseract path. The group-scoped proxy
+limits uploads to 25 MB and bounds request frequency and concurrent inference.
+
 #### OpenAI receipt extraction
 
 You can offer users to create expense by uploading a receipt. This feature relies on a [vision-capable OpenAI model](https://platform.openai.com/docs/guides/vision) and a public S3 storage endpoint.

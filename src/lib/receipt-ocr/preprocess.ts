@@ -1,7 +1,50 @@
 const MAX_IMAGE_EDGE = 2400
+const LOW_PERCENTILE = 0.02
+const HIGH_PERCENTILE = 0.98
 
 export class UnsupportedReceiptImageError extends Error {
   name = 'UnsupportedReceiptImageError'
+}
+
+/** Stretch the useful luminance range while ignoring small dark/bright outliers. */
+export function enhanceReceiptPixels(data: Uint8ClampedArray) {
+  const histogram = new Uint32Array(256)
+  let pixels = 0
+  for (let index = 0; index < data.length; index += 4) {
+    const grey = Math.round(
+      data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114,
+    )
+    histogram[grey]++
+    pixels++
+  }
+
+  const percentile = (target: number) => {
+    let seen = 0
+    for (let value = 0; value < histogram.length; value++) {
+      seen += histogram[value]
+      if (seen >= target) return value
+    }
+    return 255
+  }
+  let black = percentile(pixels * LOW_PERCENTILE)
+  let white = percentile(pixels * HIGH_PERCENTILE)
+  if (white - black < 32) {
+    black = histogram.findIndex((count) => count > 0)
+    white = histogram.findLastIndex((count) => count > 0)
+  }
+  const range = white - black
+
+  for (let index = 0; index < data.length; index += 4) {
+    const grey =
+      data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114
+    const enhanced =
+      range < 32
+        ? grey
+        : Math.max(0, Math.min(255, ((grey - black) * 255) / range))
+    data[index] = enhanced
+    data[index + 1] = enhanced
+    data[index + 2] = enhanced
+  }
 }
 
 /**
@@ -37,16 +80,7 @@ export async function preprocessReceiptImage(file: Blob): Promise<Blob> {
   bitmap.close()
   const image = context.getImageData(0, 0, width, height)
 
-  for (let index = 0; index < image.data.length; index += 4) {
-    const grey =
-      image.data[index] * 0.299 +
-      image.data[index + 1] * 0.587 +
-      image.data[index + 2] * 0.114
-    const contrasted = Math.max(0, Math.min(255, (grey - 128) * 1.35 + 128))
-    image.data[index] = contrasted
-    image.data[index + 1] = contrasted
-    image.data[index + 2] = contrasted
-  }
+  enhanceReceiptPixels(image.data)
   context.putImageData(image, 0, 0)
 
   return new Promise((resolve, reject) => {

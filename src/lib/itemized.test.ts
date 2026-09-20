@@ -26,4 +26,16 @@ describe('itemizedShares', () => {
       itemizedShares([{ name: 'x', price: 1, assignees: [] }]),
     ).toThrow('itemAssigneesRequired')
   })
+
+  it('allocates discounts across assignees without changing their total', () => {
+    expect(
+      itemizedShares([
+        { name: 'Product', price: 899, assignees: ['b', 'a'] },
+        { name: 'Discount', price: -180, assignees: ['b', 'a'] },
+      ]),
+    ).toEqual([
+      { participant: 'a', shares: 360 },
+      { participant: 'b', shares: 359 },
+    ])
+  })
 })
