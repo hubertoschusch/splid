@@ -6,15 +6,17 @@ export function itemizedShares(items: ItemizedInput[]) {
   for (const item of items) {
     const assignees = [...new Set(item.assignees)].sort()
     if (!item.name.trim()) throw new Error('itemNameRequired')
-    if (!Number.isInteger(item.price) || item.price <= 0)
+    if (!Number.isInteger(item.price) || item.price === 0)
       throw new Error('itemPricePositive')
     if (!assignees.length) throw new Error('itemAssigneesRequired')
-    const each = Math.floor(item.price / assignees.length)
+    const each = Math.trunc(item.price / assignees.length)
     const remainder = item.price % assignees.length
     assignees.forEach((id, index) =>
       totals.set(
         id,
-        (totals.get(id) ?? 0) + each + (index < remainder ? 1 : 0),
+        (totals.get(id) ?? 0) +
+          each +
+          (index < Math.abs(remainder) ? Math.sign(remainder) : 0),
       ),
     )
   }

@@ -15,6 +15,21 @@ describe('receipt draft transfer', () => {
     })
   })
 
+  it('round-trips a receipt discount', () => {
+    const id = writeReceiptDraft({
+      groupId: 'group-a',
+      amount: '7.19',
+      items: [
+        { name: 'Product', price: '8.99', assignees: ['alice'] },
+        { name: 'Discount', price: '-1.80', assignees: ['alice'] },
+      ],
+    })
+    expect(readReceiptDraft(id, 'group-a', new Set(['alice']))?.items).toEqual([
+      { name: 'Product', price: '8.99', assignees: ['alice'] },
+      { name: 'Discount', price: '-1.80', assignees: ['alice'] },
+    ])
+  })
+
   it('does not expose a draft to another group', () => {
     const id = writeReceiptDraft({
       groupId: 'group-a',

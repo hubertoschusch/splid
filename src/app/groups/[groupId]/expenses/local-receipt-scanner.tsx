@@ -487,7 +487,7 @@ export function LocalReceiptScanner() {
           pending ||
           !Number.isFinite(Number(amount)) ||
           Number(amount) <= 0 ||
-          items.some((item) => !item.name.trim() || Number(item.price) <= 0)
+          items.some((item) => !item.name.trim() || Number(item.price) === 0)
         }
         onClick={() => {
           sendEvent(
@@ -495,7 +495,7 @@ export function LocalReceiptScanner() {
             `/groups/${groupId}/expenses`,
           )
           const validItems = items.filter(
-            (item) => item.name.trim() && Number(item.price) > 0,
+            (item) => item.name.trim() && Number(item.price) !== 0,
           )
           if (validItems.length && group) {
             const draftId = writeReceiptDraft({

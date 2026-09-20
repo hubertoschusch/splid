@@ -8,6 +8,7 @@ describe('normalizeReceiptAmount', () => {
     ['1,234.56', '1234.56'],
     ['1 234,5', '1234.5'],
     ['1234', '1234'],
+    ['-1,80', '-1.80'],
   ])('normalizes %s', (input, expected) => {
     expect(normalizeReceiptAmount(input)).toBe(expected)
   })

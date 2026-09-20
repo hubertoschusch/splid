@@ -69,4 +69,55 @@ describe('parseReceiptItems', () => {
       { name: 'EGG TART', price: '13000' },
     ])
   })
+
+  it('keeps a negative Croatian discount so items reconcile with the total', () => {
+    expect(
+      parseReceiptItems(
+        'XXL BBQ rebra 8,99 C\nPOPUST 20% -1,80\nKarlovačko svijetlo 7,99 C\nKokos 0,99 A\nDonut čokoladni 0,66 C\nPontino špek-luk-sir 1,39 C\nRolica meksička 0,99 C\nLisnato hrenovka 0,69 C\nPerec pivski 2,10 A\nSomersby Cider 10,74 C\nSomersby Višnja 10,74 C\nSomersby Mango 10,74 C\nZa platiti 54,21',
+        { expectedTotal: '54.21' },
+      ),
+    ).toEqual([
+      { name: 'XXL BBQ rebra', price: '8.99' },
+      { name: 'POPUST 20%', price: '-1.80' },
+      { name: 'Karlovačko svijetlo', price: '7.99' },
+      { name: 'Kokos', price: '0.99' },
+      { name: 'Donut čokoladni', price: '0.66' },
+      { name: 'Pontino špek-luk-sir', price: '1.39' },
+      { name: 'Rolica meksička', price: '0.99' },
+      { name: 'Lisnato hrenovka', price: '0.69' },
+      { name: 'Perec pivski', price: '2.10' },
+      { name: 'Somersby Cider', price: '10.74' },
+      { name: 'Somersby Višnja', price: '10.74' },
+      { name: 'Somersby Mango', price: '10.74' },
+    ])
+  })
+
+  it('extracts the supplied Interspar product and ignores payment rows', () => {
+    expect(
+      parseReceiptItems(
+        'PIZZA ŠUNKA SPAR 330 g 2,79 A\n1 x 2,79\nUKUPNO 2,79\nPLAĆANJE VISA 2,79',
+        { expectedTotal: '2.79' },
+      ),
+    ).toEqual([{ name: 'PIZZA ŠUNKA SPAR 330 g', price: '2.79' }])
+  })
+
+  it('joins a product name with a price split into the next OCR line', () => {
+    expect(
+      parseReceiptItems('', {
+        expectedTotal: '2.79',
+        lines: [
+          {
+            text: 'PIZZA ŠUNKA SPAR 330 g',
+            confidence: 91,
+            bbox: { x0: 20, y0: 100, x1: 320, y1: 120 },
+          },
+          {
+            text: '2,79 A',
+            confidence: 88,
+            bbox: { x0: 400, y0: 121, x1: 480, y1: 141 },
+          },
+        ],
+      }),
+    ).toEqual([{ name: 'PIZZA ŠUNKA SPAR 330 g', price: '2.79' }])
+  })
 })

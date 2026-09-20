@@ -21,6 +21,9 @@ const administrativeLine =
 const paymentLine =
   /\b(?:bar|cash|karte|card|visa|mastercard|maestro|amex|ec|girocard|credit|debit|bon|coupon|gutschein)\b/iu
 
+const discountLine =
+  /\b(?:discount|rabatt|popust|sconto|remise|descuento|descompte|korting)\b/iu
+
 const normalizeForComparison = (value: string) =>
   value
     .normalize('NFD')
@@ -61,11 +64,14 @@ type ItemCandidate = ReceiptItem & {
 }
 
 function candidateFromLine(line: string, confidence = 100, x1?: number) {
-  if (!line || confidence < 55 || isExcluded(line)) return null
+  if (!line || confidence < 55) return null
   const match = line.match(amountAtEnd)
   if (!match || match.index === undefined) return null
   const price = normalizeReceiptAmount(match[1])
   if (!price) return null
+  const isDiscount = discountLine.test(normalizeForComparison(line))
+  if (isExcluded(line) && !isDiscount) return null
+  if (isDiscount && !match[1].trim().startsWith('-')) return null
   const name = line
     .slice(0, match.index)
     .replace(/^\s*\d+(?:[.,]\d+)?\s*(?:[xX×]|@)\s*/, '')
@@ -83,26 +89,57 @@ function candidateFromLine(line: string, confidence = 100, x1?: number) {
   return { name, price, confidence, x1 } satisfies ItemCandidate
 }
 
+function mergeSplitItemLines(lines: SourceLine[]) {
+  return lines.map((line, index) => {
+    if (!/^\s*-?\d[\d .,'’]*(?:\s+[A-Z])?\s*$/u.test(line.text)) return line
+    const previous = lines[index - 1]
+    if (!previous || !/\p{L}/u.test(previous.text)) return line
+    const verticalGap = line.y0 - previous.y1
+    if (verticalGap < -4 || verticalGap > Math.max(24, previous.height * 1.5))
+      return line
+    return {
+      ...line,
+      text: `${previous.text} ${line.text}`,
+      confidence: Math.min(previous.confidence, line.confidence),
+    }
+  })
+}
+
+type SourceLine = {
+  text: string
+  confidence: number
+  x1: number | undefined
+  y0: number
+  y1: number
+  height: number
+}
+
 /** Extract only product rows whose layout and sum are plausible. */
 export function parseReceiptItems(
   text: string,
   options: ParseReceiptItemsOptions = {},
 ): ReceiptItem[] {
-  const sourceLines = options.lines?.length
+  const sourceLines: SourceLine[] = options.lines?.length
     ? [...options.lines]
         .sort((a, b) => a.bbox.y0 - b.bbox.y0)
         .map((line) => ({
           text: line.text.replace(/\s+/g, ' ').trim(),
           confidence: line.confidence,
           x1: line.bbox.x1,
+          y0: line.bbox.y0,
+          y1: line.bbox.y1,
+          height: line.bbox.y1 - line.bbox.y0,
         }))
-    : text.split(/\r?\n/).map((line) => ({
+    : text.split(/\r?\n/).map((line, index) => ({
         text: line.replace(/\s+/g, ' ').trim(),
         confidence: 100,
         x1: undefined,
+        y0: index * 20,
+        y1: index * 20 + 16,
+        height: 16,
       }))
 
-  let candidates = sourceLines
+  let candidates = mergeSplitItemLines(sourceLines)
     .map(({ text: line, confidence, x1 }) =>
       candidateFromLine(line, confidence, x1),
     )

@@ -358,7 +358,7 @@ export function ExpenseForm({
     for (const item of watchedItems) {
       const assignees = [...new Set(item.assignees)].sort()
       const price = amountAsMinorUnits(Number(item.price) || 0, groupCurrency)
-      if (!assignees.length || price <= 0) continue
+      if (!assignees.length || price === 0) continue
       const each = Math.floor(price / assignees.length)
       const remainder = price % assignees.length
       assignees.forEach((id, index) =>

@@ -106,7 +106,9 @@ export const expenseFormSchema = z
         z.object({
           name: z.string().trim().min(1, 'itemNameRequired').max(200, 'max200'),
           // The form uses display currency; the submit handler converts to minor units.
-          price: z.coerce.number('invalidNumber').positive('itemPricePositive'),
+          price: z.coerce
+            .number('invalidNumber')
+            .refine((price) => price !== 0, 'itemPricePositive'),
           assignees: z
             .array(z.string().max(64))
             .min(1, 'itemAssigneesRequired')
@@ -179,6 +181,12 @@ export const expenseFormSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'itemsRequired',
+            path: ['items'],
+          })
+        if (expense.items.reduce((sum, item) => sum + item.price, 0) <= 0)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'amountNotZero',
             path: ['items'],
           })
         break

@@ -77,6 +77,33 @@ describe('expenseFormSchema, itemized', () => {
     }
   })
 
+  it('includes discounts in the derived itemized amount', () => {
+    const result = expenseFormSchema.safeParse({
+      ...byAmountExpense('0', []),
+      splitMode: 'ITEMIZED',
+      items: [
+        { name: 'Product', price: '8.99', assignees: ['a'] },
+        { name: 'Discount', price: '-1.80', assignees: ['a'] },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.amount).toBe(7.19)
+  })
+
+  it('rejects an itemized expense whose discounts erase its total', () => {
+    expect(
+      issueMessages({
+        ...byAmountExpense('0', []),
+        splitMode: 'ITEMIZED',
+        items: [
+          { name: 'Product', price: '1.00', assignees: ['a'] },
+          { name: 'Discount', price: '-1.00', assignees: ['a'] },
+        ],
+      }),
+    ).toContain('amountNotZero')
+  })
+
   it('still requires participants outside itemized mode', () => {
     expect(issueMessages(byAmountExpense('10', []))).toContain('paidForMin1')
   })
