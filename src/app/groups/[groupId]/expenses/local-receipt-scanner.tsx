@@ -172,13 +172,18 @@ export function LocalReceiptScanner({
         ? ['eng', 'srp']
         : languages
       let usedServer = serverOcr
-      let processed: Blob | null = null
+      const processed = await preprocessReceiptImage(file)
       let recognized
       try {
         if (!serverOcr) throw new Error('Use browser OCR.')
         recognized = await (
           await import('@/lib/receipt-ocr/recognize-server')
-        ).recognizeReceiptOnServer(file, groupId, languages, controller.signal)
+        ).recognizeReceiptOnServer(
+          processed,
+          groupId,
+          languages,
+          controller.signal,
+        )
       } catch (serverError) {
         if (
           serverError instanceof DOMException &&
@@ -186,7 +191,6 @@ export function LocalReceiptScanner({
         )
           throw serverError
         usedServer = false
-        processed = await preprocessReceiptImage(file)
         recognized = await recognizeReceipt(
           processed,
           pilotLanguages,
@@ -205,7 +209,7 @@ export function LocalReceiptScanner({
         receiptLanguages.join('+') !== pilotLanguages.join('+')
       ) {
         recognized = await recognizeReceipt(
-          processed!,
+          processed,
           receiptLanguages,
           ({ progress: nextProgress }) =>
             setProgress(0.45 + nextProgress * 0.55),

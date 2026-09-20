@@ -11,7 +11,7 @@ services:
       # Optional:
       DEFAULT_CURRENCY_CODE: EUR
       ENABLE_LOCAL_RECEIPT_OCR: "true"
-      PADDLEOCR_URL: http://receipt-ai:8080
+      PADDLEOCR_URL: http://${SERVICE_NAME_RECEIPT_AI}:8080
 
     depends_on:
       db:
