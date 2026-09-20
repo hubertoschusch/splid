@@ -1625,7 +1625,6 @@ export function ExpenseForm({
                                     <FormControl>
                                       <Input
                                         type="number"
-                                        min="0"
                                         step={
                                           10 ** -groupCurrency.decimal_digits
                                         }

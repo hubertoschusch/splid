@@ -30,11 +30,23 @@ describe('recognizeReceiptOnServer', () => {
     await expect(
       recognizeReceiptOnServer(
         new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }),
+        'group-a',
+        ['deu'],
       ),
     ).resolves.toMatchObject({
       text: expect.stringContaining('BIJELA KOBASICA'),
       lines: [{ text: expect.stringContaining('BIJELA KOBASICA') }],
     })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/groups/group-a/receipt-ocr',
+      expect.objectContaining({
+        body: expect.any(File),
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'X-Receipt-Languages': 'deu',
+        },
+      }),
+    )
   })
 
   it('rejects malformed service responses', async () => {
@@ -43,6 +55,8 @@ describe('recognizeReceiptOnServer', () => {
     await expect(
       recognizeReceiptOnServer(
         new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }),
+        'group-a',
+        ['eng'],
       ),
     ).rejects.toThrow('Invalid server OCR response.')
   })

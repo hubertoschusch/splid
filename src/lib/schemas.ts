@@ -108,6 +108,7 @@ export const expenseFormSchema = z
           // The form uses display currency; the submit handler converts to minor units.
           price: z.coerce
             .number('invalidNumber')
+            .refine(Number.isFinite, 'invalidNumber')
             .refine((price) => price !== 0, 'itemPricePositive'),
           assignees: z
             .array(z.string().max(64))
@@ -183,7 +184,11 @@ export const expenseFormSchema = z
             message: 'itemsRequired',
             path: ['items'],
           })
-        if (expense.items.reduce((sum, item) => sum + item.price, 0) <= 0)
+        if (
+          expense.items
+            .reduce((sum, item) => sum.add(item.price), new Decimal(0))
+            .lte(0)
+        )
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'amountNotZero',
@@ -240,7 +245,11 @@ export const expenseFormSchema = z
     // Format the share split as a number (if from form submission)
     const itemizedAmount =
       expense.splitMode === 'ITEMIZED'
-        ? expense.items.reduce((sum, item) => sum + item.price, 0)
+        ? Number(
+            expense.items
+              .reduce((sum, item) => sum.add(item.price), new Decimal(0))
+              .toString(),
+          )
         : expense.amount
     return {
       ...expense,

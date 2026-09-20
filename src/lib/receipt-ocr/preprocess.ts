@@ -26,14 +26,21 @@ export function enhanceReceiptPixels(data: Uint8ClampedArray) {
     }
     return 255
   }
-  const black = percentile(pixels * LOW_PERCENTILE)
-  const white = percentile(pixels * HIGH_PERCENTILE)
-  const range = Math.max(32, white - black)
+  let black = percentile(pixels * LOW_PERCENTILE)
+  let white = percentile(pixels * HIGH_PERCENTILE)
+  if (white - black < 32) {
+    black = histogram.findIndex((count) => count > 0)
+    white = histogram.findLastIndex((count) => count > 0)
+  }
+  const range = white - black
 
   for (let index = 0; index < data.length; index += 4) {
     const grey =
       data[index] * 0.299 + data[index + 1] * 0.587 + data[index + 2] * 0.114
-    const enhanced = Math.max(0, Math.min(255, ((grey - black) * 255) / range))
+    const enhanced =
+      range < 32
+        ? grey
+        : Math.max(0, Math.min(255, ((grey - black) * 255) / range))
     data[index] = enhanced
     data[index + 1] = enhanced
     data[index + 2] = enhanced

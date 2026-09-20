@@ -56,4 +56,11 @@ describe('parseReceiptTotal', () => {
     expect(result.best).toBeNull()
     expect(result.candidates).toHaveLength(2)
   })
+
+  it('never selects a negative discount as the receipt total', () => {
+    const result = parseReceiptTotal('AMOUNT DUE 8.20\nPROMO -1.80', ['eng'])
+
+    expect(result.best?.amount).toBe('8.20')
+    expect(result.candidates.map(({ amount }) => amount)).not.toContain('-1.80')
+  })
 })

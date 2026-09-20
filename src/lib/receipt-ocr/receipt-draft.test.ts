@@ -47,4 +47,14 @@ describe('receipt draft transfer', () => {
     })
     expect(readReceiptDraft(id, 'group-a', new Set(['alice']))).toBeNull()
   })
+
+  it.each(['abc', 'Infinity', '-Infinity'])('rejects the price %s', (price) => {
+    const id = writeReceiptDraft({
+      groupId: 'group-a',
+      amount: '3.50',
+      items: [{ name: 'Coffee', price, assignees: ['alice'] }],
+    })
+
+    expect(readReceiptDraft(id, 'group-a', new Set(['alice']))).toBeNull()
+  })
 })

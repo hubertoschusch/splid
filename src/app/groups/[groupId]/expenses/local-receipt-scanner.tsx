@@ -178,7 +178,7 @@ export function LocalReceiptScanner({
         if (!serverOcr) throw new Error('Use browser OCR.')
         recognized = await (
           await import('@/lib/receipt-ocr/recognize-server')
-        ).recognizeReceiptOnServer(file, controller.signal)
+        ).recognizeReceiptOnServer(file, groupId, languages, controller.signal)
       } catch (serverError) {
         if (
           serverError instanceof DOMException &&
@@ -518,7 +518,12 @@ export function LocalReceiptScanner({
           pending ||
           !Number.isFinite(Number(amount)) ||
           Number(amount) <= 0 ||
-          items.some((item) => !item.name.trim() || Number(item.price) === 0) ||
+          items.some(
+            (item) =>
+              !item.name.trim() ||
+              !Number.isFinite(Number(item.price)) ||
+              Number(item.price) === 0,
+          ) ||
           (items.length > 0 &&
             Math.abs(
               items.reduce((sum, item) => sum + (Number(item.price) || 0), 0) -
@@ -531,7 +536,10 @@ export function LocalReceiptScanner({
             `/groups/${groupId}/expenses`,
           )
           const validItems = items.filter(
-            (item) => item.name.trim() && Number(item.price) !== 0,
+            (item) =>
+              item.name.trim() &&
+              Number.isFinite(Number(item.price)) &&
+              Number(item.price) !== 0,
           )
           if (validItems.length && group) {
             const draftId = writeReceiptDraft({

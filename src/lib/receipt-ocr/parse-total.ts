@@ -79,7 +79,7 @@ export function parseReceiptTotal(
 
     for (const match of line.matchAll(amountPattern)) {
       const amount = normalizeReceiptAmount(match[2])
-      if (!amount) continue
+      if (!amount || Number(amount) <= 0) continue
       let score = 5
       if (strongTotal) score += 70
       else if (total) score += 45

@@ -274,7 +274,9 @@ PADDLEOCR_CPU_THREADS=4
 
 The model is downloaded into the persistent `paddleocr-models` volume on first
 startup. CPU inference can take considerably longer than browser OCR. If the
-service is unavailable, the scanner falls back to its on-device Tesseract path.
+service is unavailable, busy, or configured for a different selected language,
+the scanner falls back to its on-device Tesseract path. The group-scoped proxy
+limits uploads to 25 MB and bounds request frequency and concurrent inference.
 
 #### OpenAI receipt extraction
 

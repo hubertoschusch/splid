@@ -135,6 +135,49 @@ osnovica 4,30 iznos 1,08 ukupno 5,38 A
     ).toEqual([{ name: 'PIZZA ŠUNKA SPAR 330 g', price: '2.79' }])
   })
 
+  it('accepts a currency code on a split price line', () => {
+    expect(
+      parseReceiptItems('', {
+        expectedTotal: '2.79',
+        lines: [
+          {
+            text: 'PIZZA ŠUNKA SPAR',
+            confidence: 91,
+            bbox: { x0: 20, y0: 100, x1: 320, y1: 120 },
+          },
+          {
+            text: '2,79 EUR',
+            confidence: 88,
+            bbox: { x0: 400, y0: 121, x1: 500, y1: 141 },
+          },
+        ],
+      }),
+    ).toEqual([{ name: 'PIZZA ŠUNKA SPAR', price: '2.79' }])
+  })
+
+  it('does not append a numeric code to a completed item row', () => {
+    expect(
+      parseReceiptItems('APPLE 1.00\n2', { expectedTotal: '1.00' }),
+    ).toEqual([{ name: 'APPLE', price: '1.00' }])
+  })
+
+  it('accepts lowercase currency codes without accepting lowercase weights', () => {
+    expect(parseReceiptItems('Coffee 3.50 eur\nFlour 300 g')).toEqual([
+      { name: 'Coffee', price: '3.50' },
+    ])
+  })
+
+  it('keeps a Serbian Cyrillic discount', () => {
+    expect(
+      parseReceiptItems('ПРОИЗВОД 10,00\nПОПУСТ -1,00', {
+        expectedTotal: '9.00',
+      }),
+    ).toEqual([
+      { name: 'ПРОИЗВОД', price: '10.00' },
+      { name: 'ПОПУСТ', price: '-1.00' },
+    ])
+  })
+
   it('reconstructs product and price fragments from the same visual row', () => {
     const result = parseReceiptItemsDetailed('', {
       expectedTotal: '5.38',

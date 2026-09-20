@@ -50,6 +50,7 @@ export function readReceiptDraft(
         item.name.trim().length > 0 &&
         item.name.length <= 200 &&
         typeof item.price === 'string' &&
+        Number.isFinite(Number(item.price)) &&
         Number(item.price) !== 0 &&
         Array.isArray(item.assignees) &&
         item.assignees.length > 0 &&

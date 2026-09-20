@@ -104,6 +104,30 @@ describe('expenseFormSchema, itemized', () => {
     ).toContain('amountNotZero')
   })
 
+  it('sums item prices without binary floating-point drift', () => {
+    expect(
+      issueMessages({
+        ...byAmountExpense('0', []),
+        splitMode: 'ITEMIZED',
+        items: [
+          { name: 'One', price: '0.10', assignees: ['a'] },
+          { name: 'Two', price: '0.20', assignees: ['a'] },
+          { name: 'Discount', price: '-0.30', assignees: ['a'] },
+        ],
+      }),
+    ).toContain('amountNotZero')
+  })
+
+  it.each(['Infinity', '-Infinity'])('rejects the item price %s', (price) => {
+    expect(
+      issueMessages({
+        ...byAmountExpense('0', []),
+        splitMode: 'ITEMIZED',
+        items: [{ name: 'Invalid', price, assignees: ['a'] }],
+      }),
+    ).toContain('invalidNumber')
+  })
+
   it('still requires participants outside itemized mode', () => {
     expect(issueMessages(byAmountExpense('10', []))).toContain('paidForMin1')
   })

@@ -5,12 +5,26 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from paddleocr import PaddleOCR
 
 MAX_FILE_SIZE = 25 * 1024 * 1024
 pipeline: PaddleOCR | None = None
 inference_lock = asyncio.Lock()
+configured_language = os.environ.get("PADDLEOCR_LANG", "german").lower()
+
+LANGUAGE_MODELS = {
+    "deu": "german",
+    "eng": "en",
+    "hrv": "latin",
+    "bos": "latin",
+    "srp_latn": "latin",
+    "srp": "cyrillic",
+    "slv": "latin",
+    "ita": "it",
+    "fra": "fr",
+    "spa": "es",
+}
 
 
 @asynccontextmanager
@@ -18,7 +32,7 @@ async def lifespan(_: FastAPI):
     global pipeline
     pipeline = await asyncio.to_thread(
         PaddleOCR,
-        lang=os.environ.get("PADDLEOCR_LANG", "german"),
+        lang=configured_language,
         device="cpu",
         cpu_threads=int(os.environ.get("PADDLEOCR_CPU_THREADS", "4")),
         use_doc_orientation_classify=False,
@@ -76,11 +90,16 @@ def extract_text_and_lines(results: list[Any]):
 
 
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
+async def analyze(file: UploadFile = File(...), language: str = Form(...)):
     if pipeline is None:
         raise HTTPException(status_code=503, detail="Model is still loading")
     if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Unsupported image type")
+    if LANGUAGE_MODELS.get(language) != configured_language:
+        raise HTTPException(
+            status_code=409,
+            detail="Requested language requires a different OCR model",
+        )
     data = await file.read(MAX_FILE_SIZE + 1)
     if len(data) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Image is too large")
@@ -91,6 +110,8 @@ async def analyze(file: UploadFile = File(...)):
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
             handle.write(data)
             path = handle.name
+        if inference_lock.locked():
+            raise HTTPException(status_code=429, detail="OCR service is busy")
         async with inference_lock:
             results = await asyncio.to_thread(
                 lambda: list(pipeline.predict(input=path))

@@ -13,7 +13,10 @@ export type ParseReceiptItemsOptions = {
 }
 
 const amountAtEnd =
-  /(-?\d(?:[\d .,'’]*\d)?)\s*(?:EUR|USD|GBP|CHF|HRK|BAM|RSD|€|\$|£)?(?:\s+[A-Z])?\s*$/u
+  /(-?\d(?:[\d .,'’]*\d)?)\s*(?:(?:[Ee][Uu][Rr]|[Uu][Ss][Dd]|[Gg][Bb][Pp]|[Cc][Hh][Ff]|[Hh][Rr][Kk]|[Bb][Aa][Mm]|[Rr][Ss][Dd]|€|\$|£)|[A-Z])?\s*$/u
+
+const standaloneAmount =
+  /^\s*-?\d[\d .,'’]*(?:\s*(?:[Ee][Uu][Rr]|[Uu][Ss][Dd]|[Gg][Bb][Pp]|[Cc][Hh][Ff]|[Hh][Rr][Kk]|[Bb][Aa][Mm]|[Rr][Ss][Dd]|€|\$|£|[A-Z]))?\s*$/u
 
 const administrativeLine =
   /(?:\bgrand\s*total\b|\bsub\s*total\b|\b(?:invoice|receipt|rechnung|beleg|racun|račun|facture|fattura|factura|ticket|order|bestellung|cashier|kasse|bedienung|operator|server|table|tisch|tel|phone|fax|www|https?|email|date|datum|zeit|time|transaction|transaktion|filiale|store|market|markt|supermarket|gmbh|sarl|srl|tax id|vat id|ust-?id|items?|artikel|qty|quantity|menge|service|charge|tip|trinkgeld|payment|zahlung|paid|tendered|change|changed|ruckgeld|rueckgeld|kembalian|kembali|discount|diskon|pajak|net sales|dpp|pb-?1|p\.rest|svc chg|other)\b|@|\.(?:com|net|org|de|fr|it|es)\b)/iu
@@ -22,7 +25,7 @@ const paymentLine =
   /\b(?:bar|cash|karte|card|visa|mastercard|maestro|amex|ec|girocard|credit|debit|bon|coupon|gutschein)\b/iu
 
 const discountLine =
-  /\b(?:discount|rabatt|popust|sconto|remise|descuento|descompte|korting)\b/iu
+  /(?:^|[^\p{L}\p{N}])(?:discount|rabatt|popust|попуст|sconto|remise|descuento|descompte|korting)(?=$|[^\p{L}\p{N}])/iu
 
 const normalizeForComparison = (value: string) =>
   value
@@ -91,9 +94,14 @@ function candidateFromLine(line: string, confidence = 100, x1?: number) {
 
 function mergeSplitItemLines(lines: SourceLine[]) {
   return lines.map((line, index) => {
-    if (!/^\s*-?\d[\d .,'’]*(?:\s+[A-Z])?\s*$/u.test(line.text)) return line
+    if (!standaloneAmount.test(line.text)) return line
     const previous = lines[index - 1]
-    if (!previous || !/\p{L}/u.test(previous.text)) return line
+    if (
+      !previous ||
+      !/\p{L}/u.test(previous.text) ||
+      amountAtEnd.test(previous.text)
+    )
+      return line
     const verticalGap = line.y0 - previous.y1
     if (verticalGap < -4 || verticalGap > Math.max(24, previous.height * 1.5))
       return line

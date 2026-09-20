@@ -1,16 +1,23 @@
-import { ReceiptOcrText } from './types'
+import { ReceiptOcrLanguageCode, ReceiptOcrText } from './types'
 
 export async function recognizeReceiptOnServer(
   file: File,
+  groupId: string,
+  languages: ReceiptOcrLanguageCode[],
   signal?: AbortSignal,
 ): Promise<ReceiptOcrText> {
-  const body = new FormData()
-  body.set('file', file, file.name)
-  const response = await fetch('/api/receipt-ocr', {
-    method: 'POST',
-    body,
-    signal,
-  })
+  const response = await fetch(
+    `/api/groups/${encodeURIComponent(groupId)}/receipt-ocr`,
+    {
+      method: 'POST',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+        'X-Receipt-Languages': languages.join(','),
+      },
+      signal,
+    },
+  )
   if (!response.ok) throw new Error('Server receipt OCR failed.')
   const value: unknown = await response.json()
   if (!value || typeof value !== 'object')
