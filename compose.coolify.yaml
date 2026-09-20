@@ -24,7 +24,7 @@ services:
     expose:
       - "8080"
     environment:
-      PADDLEOCR_LANG: ${PADDLEOCR_LANG:-german}
+      PADDLEOCR_LANG: ${PADDLEOCR_LANG:-la}
       PADDLEOCR_CPU_THREADS: ${PADDLEOCR_CPU_THREADS:-4}
     volumes:
       - paddleocr-models:/root/.paddlex
