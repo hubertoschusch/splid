@@ -62,7 +62,11 @@ function initialLanguages(locale: string): ReceiptOcrLanguageCode[] {
   return [suggestReceiptOcrLanguage(locale)]
 }
 
-export function LocalReceiptScanner() {
+export function LocalReceiptScanner({
+  serverOcr = false,
+}: {
+  serverOcr?: boolean
+}) {
   const locale = useLocale()
   const t = useTranslations('CreateFromReceipt')
   const tr = (key: string, fallback: string) =>
@@ -164,27 +168,44 @@ export function LocalReceiptScanner() {
         import('@/lib/receipt-ocr/recognize'),
         import('@/lib/receipt-ocr/detect-language'),
       ])
-      const processed = await preprocessReceiptImage(file)
       const pilotLanguages: ReceiptOcrLanguageCode[] = automaticLanguage
         ? ['eng', 'srp']
         : languages
-      let recognized = await recognizeReceipt(
-        processed,
-        pilotLanguages,
-        ({ progress: nextProgress }) =>
-          setProgress(automaticLanguage ? nextProgress * 0.45 : nextProgress),
-        controller.signal,
-      )
+      let usedServer = serverOcr
+      let processed: Blob | null = null
+      let recognized
+      try {
+        if (!serverOcr) throw new Error('Use browser OCR.')
+        recognized = await (
+          await import('@/lib/receipt-ocr/recognize-server')
+        ).recognizeReceiptOnServer(file, controller.signal)
+      } catch (serverError) {
+        if (
+          serverError instanceof DOMException &&
+          serverError.name === 'AbortError'
+        )
+          throw serverError
+        usedServer = false
+        processed = await preprocessReceiptImage(file)
+        recognized = await recognizeReceipt(
+          processed,
+          pilotLanguages,
+          ({ progress: nextProgress }) =>
+            setProgress(automaticLanguage ? nextProgress * 0.45 : nextProgress),
+          controller.signal,
+        )
+      }
       const receiptLanguages = automaticLanguage
         ? detectReceiptLanguages(recognized.text, locale)
         : languages
       setDetectedLanguages(receiptLanguages)
       if (
+        !usedServer &&
         automaticLanguage &&
         receiptLanguages.join('+') !== pilotLanguages.join('+')
       ) {
         recognized = await recognizeReceipt(
-          processed,
+          processed!,
           receiptLanguages,
           ({ progress: nextProgress }) =>
             setProgress(0.45 + nextProgress * 0.55),
@@ -239,10 +260,15 @@ export function LocalReceiptScanner() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        {tr(
-          'privacy',
-          'The image is read on this device and is not uploaded for OCR.',
-        )}
+        {serverOcr
+          ? tr(
+              'serverPrivacy',
+              'The image is analyzed by the private OCR service on this server.',
+            )
+          : tr(
+              'privacy',
+              'The image is read on this device and is not uploaded for OCR.',
+            )}
       </p>
 
       <input
@@ -370,7 +396,10 @@ export function LocalReceiptScanner() {
           onClick={scan}
           disabled={!automaticLanguage && languages.length === 0}
         >
-          <ScanText className="mr-2 size-4" /> {tr('scan', 'Scan locally')}
+          <ScanText className="mr-2 size-4" />
+          {serverOcr
+            ? tr('scanServer', 'Scan on server')
+            : tr('scan', 'Scan locally')}
         </Button>
       )}
 

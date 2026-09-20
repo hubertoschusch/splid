@@ -313,9 +313,11 @@
   "CreateFromReceipt": {
     "Local": {
       "description": "Read the total from a receipt locally on this device.",
+      "serverDescription": "Read totals and products with the private OCR service on this server.",
       "onDevice": "On device",
       "cloud": "Cloud extraction",
       "privacy": "The image is read on this device and is not uploaded for OCR.",
+      "serverPrivacy": "The image is analyzed by the private OCR service on this server.",
       "selectImage": "Take a photo or select an image",
       "takePhoto": "Take photo",
       "chooseGallery": "Choose from gallery",
@@ -325,6 +327,7 @@
       "detectedLanguage": "Detected language",
       "noSecondLanguage": "One language",
       "scan": "Scan locally",
+      "scanServer": "Scan on server",
       "cancel": "Cancel",
       "amount": "Amount",
       "items": "Products",

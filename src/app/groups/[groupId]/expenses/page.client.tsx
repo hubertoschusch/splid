@@ -21,9 +21,11 @@ import { useCurrentGroup } from '../current-group-context'
 export default function GroupExpensesPageClient({
   enableReceiptExtract,
   enableLocalReceiptOcr,
+  enableServerReceiptOcr,
 }: {
   enableReceiptExtract: boolean
   enableLocalReceiptOcr: boolean
+  enableServerReceiptOcr: boolean
 }) {
   const t = useTranslations('Expenses')
   const { groupId } = useCurrentGroup()
@@ -43,6 +45,7 @@ export default function GroupExpensesPageClient({
               <CreateFromReceiptButton
                 enableReceiptExtract={enableReceiptExtract}
                 enableLocalReceiptOcr={enableLocalReceiptOcr}
+                enableServerReceiptOcr={enableServerReceiptOcr}
               />
             )}
             <Button asChild size="icon">

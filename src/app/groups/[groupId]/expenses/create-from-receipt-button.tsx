@@ -47,9 +47,11 @@ const MAX_FILE_SIZE = 5 * 1024 ** 2
 
 export function CreateFromReceiptButton({
   enableLocalReceiptOcr = false,
+  enableServerReceiptOcr = false,
   enableReceiptExtract = true,
 }: {
   enableLocalReceiptOcr?: boolean
+  enableServerReceiptOcr?: boolean
   enableReceiptExtract?: boolean
 }) {
   const t = useTranslations('CreateFromReceipt')
@@ -83,9 +85,11 @@ export function CreateFromReceiptButton({
       }
       description={
         <>
-          {enableLocalReceiptOcr && t.has('Local.description')
-            ? t('Local.description')
-            : t('Dialog.description')}
+          {enableServerReceiptOcr && t.has('Local.serverDescription')
+            ? t('Local.serverDescription')
+            : enableLocalReceiptOcr && t.has('Local.description')
+              ? t('Local.description')
+              : t('Dialog.description')}
         </>
       }
     >
@@ -107,7 +111,9 @@ export function CreateFromReceiptButton({
           </Button>
         </div>
       )}
-      {mode === 'local' && enableLocalReceiptOcr && <LocalReceiptScanner />}
+      {mode === 'local' && enableLocalReceiptOcr && (
+        <LocalReceiptScanner serverOcr={enableServerReceiptOcr} />
+      )}
       {mode === 'cloud' && enableReceiptExtract && <ReceiptDialogContent />}
     </DialogOrDrawer>
   )
