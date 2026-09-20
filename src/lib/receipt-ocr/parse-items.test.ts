@@ -1,4 +1,4 @@
-import { parseReceiptItems } from './parse-items'
+import { parseReceiptItems, parseReceiptItemsDetailed } from './parse-items'
 
 describe('parseReceiptItems', () => {
   it('extracts products while excluding receipt totals and taxes', () => {
@@ -133,5 +133,52 @@ osnovica 4,30 iznos 1,08 ukupno 5,38 A
         ],
       }),
     ).toEqual([{ name: 'PIZZA ŠUNKA SPAR 330 g', price: '2.79' }])
+  })
+
+  it('reconstructs product and price fragments from the same visual row', () => {
+    const result = parseReceiptItemsDetailed('', {
+      expectedTotal: '5.38',
+      lines: [
+        {
+          text: 'BIJELA KOBASICA 300 g',
+          confidence: 89,
+          bbox: { x0: 40, y0: 100, x1: 310, y1: 126 },
+        },
+        {
+          text: '5,38 A',
+          confidence: 92,
+          bbox: { x0: 420, y0: 102, x1: 500, y1: 125 },
+        },
+        {
+          text: '2 x 2,69',
+          confidence: 90,
+          bbox: { x0: 80, y0: 132, x1: 220, y1: 154 },
+        },
+      ],
+    })
+
+    expect(result).toMatchObject({
+      items: [{ name: 'BIJELA KOBASICA 300 g', price: '5.38' }],
+      reconciles: true,
+      actualTotal: '5.38',
+    })
+  })
+
+  it('does not interpret a product weight as its price', () => {
+    expect(parseReceiptItems('BIJELA KOBASICA 300 g')).toEqual([])
+  })
+
+  it('keeps candidates available when their sum needs review', () => {
+    expect(
+      parseReceiptItemsDetailed('MILCH 1,29\nWerbetext 5,00', {
+        expectedTotal: '1.29',
+      }),
+    ).toMatchObject({
+      items: [
+        { name: 'MILCH', price: '1.29' },
+        { name: 'Werbetext', price: '5.00' },
+      ],
+      reconciles: false,
+    })
   })
 })

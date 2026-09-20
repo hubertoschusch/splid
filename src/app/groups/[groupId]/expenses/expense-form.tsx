@@ -70,7 +70,7 @@ import { ChevronRight, Plus, Save, Trash2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { match } from 'ts-pattern'
 import { DeletePopup } from '../../../../components/delete-popup'
@@ -196,17 +196,8 @@ export function ExpenseForm({
   const locale = useLocale() as Locale
   const isCreate = expense === undefined
   const searchParams = useSearchParams()
-  const receiptDraft = useMemo(
-    () =>
-      typeof window === 'undefined'
-        ? null
-        : readReceiptDraft(
-            searchParams.get('receiptDraft'),
-            group.id,
-            new Set(group.participants.map(({ id }) => id)),
-          ),
-    [group.id, group.participants, searchParams],
-  )
+  const receiptDraftId = searchParams.get('receiptDraft')
+  const loadedReceiptDraftId = useRef<string | null>(null)
 
   /** Whether the form was opened from a suggested reimbursement ("Mark as paid"). */
   const isRepayment = isCreate && !!searchParams.get('reimbursement')
@@ -305,8 +296,7 @@ export function ExpenseForm({
             expenseDate: searchParams.get('date')
               ? new Date(searchParams.get('date') as string)
               : getTodayForDateInput(),
-            amount:
-              Number(receiptDraft?.amount ?? searchParams.get('amount')) || 0,
+            amount: Number(searchParams.get('amount')) || 0,
             originalCurrency: group.currencyCode ?? undefined,
             originalAmount: undefined,
             conversionRate: undefined,
@@ -317,9 +307,7 @@ export function ExpenseForm({
             paidFor: defaultSplittingOptions.paidFor,
             paidBy: getSelectedPayer(),
             isReimbursement: false,
-            splitMode: receiptDraft
-              ? 'ITEMIZED'
-              : defaultSplittingOptions.splitMode,
+            splitMode: defaultSplittingOptions.splitMode,
             saveDefaultSplittingOptions: false,
             documents: searchParams.get('imageUrl')
               ? [
@@ -333,7 +321,7 @@ export function ExpenseForm({
               : [],
             notes: '',
             recurrenceRule: RecurrenceRule.NONE,
-            items: receiptDraft?.items ?? [],
+            items: [],
           },
   })
   const {
@@ -345,6 +333,24 @@ export function ExpenseForm({
     name: 'items',
   })
   const watchedItems = form.watch('items') ?? []
+
+  useEffect(() => {
+    if (!receiptDraftId || loadedReceiptDraftId.current === receiptDraftId)
+      return
+    loadedReceiptDraftId.current = receiptDraftId
+    const draft = readReceiptDraft(
+      receiptDraftId,
+      group.id,
+      new Set(group.participants.map(({ id }) => id)),
+    )
+    if (!draft) return
+    form.reset({
+      ...form.getValues(),
+      amount: Number(draft.amount),
+      splitMode: 'ITEMIZED',
+      items: draft.items,
+    })
+  }, [form, group.id, group.participants, receiptDraftId])
 
   const revalidateItemsAfterSubmit = () => {
     if (!form.formState.isSubmitted) return

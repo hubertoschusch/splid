@@ -14,7 +14,10 @@ import {
   isReceiptOcrLanguageCode,
   suggestReceiptOcrLanguage,
 } from '@/lib/receipt-ocr/languages'
-import { ReceiptItem, parseReceiptItems } from '@/lib/receipt-ocr/parse-items'
+import {
+  ReceiptItem,
+  parseReceiptItemsDetailed,
+} from '@/lib/receipt-ocr/parse-items'
 import {
   ReceiptAmountCandidate,
   parseReceiptTotal,
@@ -189,14 +192,13 @@ export function LocalReceiptScanner() {
         )
       }
       const parsed = parseReceiptTotal(recognized.text, receiptLanguages)
-      setItems(
-        parsed.best
-          ? parseReceiptItems(recognized.text, {
-              lines: recognized.lines,
-              expectedTotal: parsed.best.amount,
-            })
-          : [],
-      )
+      const parsedItems = parsed.best
+        ? parseReceiptItemsDetailed(recognized.text, {
+            lines: recognized.lines,
+            expectedTotal: parsed.best.amount,
+          })
+        : null
+      setItems(parsedItems?.items ?? [])
       setCandidates(parsed.candidates)
       if (parsed.best) {
         setAmount(parsed.best.amount)
@@ -487,7 +489,12 @@ export function LocalReceiptScanner() {
           pending ||
           !Number.isFinite(Number(amount)) ||
           Number(amount) <= 0 ||
-          items.some((item) => !item.name.trim() || Number(item.price) === 0)
+          items.some((item) => !item.name.trim() || Number(item.price) === 0) ||
+          (items.length > 0 &&
+            Math.abs(
+              items.reduce((sum, item) => sum + (Number(item.price) || 0), 0) -
+                Number(amount),
+            ) > 0.01)
         }
         onClick={() => {
           sendEvent(
@@ -513,9 +520,13 @@ export function LocalReceiptScanner() {
               )
               return
             }
-            router.push(
-              `/groups/${groupId}/expenses/create?amount=${encodeURIComponent(amount)}`,
+            setError(
+              tr(
+                'draftError',
+                'The recognized products could not be transferred. Check browser storage permissions and try again.',
+              ),
             )
+            return
           } else {
             router.push(
               `/groups/${groupId}/expenses/create?amount=${encodeURIComponent(amount)}`,

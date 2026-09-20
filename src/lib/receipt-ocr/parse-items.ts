@@ -13,7 +13,7 @@ export type ParseReceiptItemsOptions = {
 }
 
 const amountAtEnd =
-  /(-?\d(?:[\d .,'’]*\d)?)\s*(?:EUR|USD|GBP|CHF|HRK|BAM|RSD|€|\$|£)?(?:\s+[A-Z])?\s*$/iu
+  /(-?\d(?:[\d .,'’]*\d)?)\s*(?:EUR|USD|GBP|CHF|HRK|BAM|RSD|€|\$|£)?(?:\s+[A-Z])?\s*$/u
 
 const administrativeLine =
   /(?:\bgrand\s*total\b|\bsub\s*total\b|\b(?:invoice|receipt|rechnung|beleg|racun|račun|facture|fattura|factura|ticket|order|bestellung|cashier|kasse|bedienung|operator|server|table|tisch|tel|phone|fax|www|https?|email|date|datum|zeit|time|transaction|transaktion|filiale|store|market|markt|supermarket|gmbh|sarl|srl|tax id|vat id|ust-?id|items?|artikel|qty|quantity|menge|service|charge|tip|trinkgeld|payment|zahlung|paid|tendered|change|changed|ruckgeld|rueckgeld|kembalian|kembali|discount|diskon|pajak|net sales|dpp|pb-?1|p\.rest|svc chg|other)\b|@|\.(?:com|net|org|de|fr|it|es)\b)/iu
@@ -105,9 +105,56 @@ function mergeSplitItemLines(lines: SourceLine[]) {
   })
 }
 
+function mergeVisualRows(lines: SourceLine[]) {
+  const rows: SourceLine[][] = []
+  for (const line of [...lines].sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0)) {
+    const center = (line.y0 + line.y1) / 2
+    const row = rows.find((parts) => {
+      const y0 = Math.min(...parts.map((part) => part.y0))
+      const y1 = Math.max(...parts.map((part) => part.y1))
+      const overlap = Math.min(y1, line.y1) - Math.max(y0, line.y0)
+      const minHeight = Math.max(1, Math.min(y1 - y0, line.height))
+      const rowCenter = (y0 + y1) / 2
+      return (
+        overlap / minHeight >= 0.45 ||
+        Math.abs(center - rowCenter) <= minHeight * 0.35
+      )
+    })
+    if (row) row.push(line)
+    else rows.push([line])
+  }
+
+  return rows
+    .map((parts) => {
+      const ordered = [...parts].sort((a, b) => a.x0 - b.x0)
+      const y0 = Math.min(...parts.map((part) => part.y0))
+      const y1 = Math.max(...parts.map((part) => part.y1))
+      const characterCount = parts.reduce(
+        (sum, part) => sum + Math.max(1, part.text.length),
+        0,
+      )
+      return {
+        text: ordered.map((part) => part.text).join(' '),
+        confidence:
+          parts.reduce(
+            (sum, part) =>
+              sum + part.confidence * Math.max(1, part.text.length),
+            0,
+          ) / characterCount,
+        x0: Math.min(...parts.map((part) => part.x0)),
+        x1: Math.max(...parts.map((part) => part.x1 ?? 0)),
+        y0,
+        y1,
+        height: y1 - y0,
+      }
+    })
+    .sort((a, b) => a.y0 - b.y0)
+}
+
 type SourceLine = {
   text: string
   confidence: number
+  x0: number
   x1: number | undefined
   y0: number
   y1: number
@@ -115,16 +162,24 @@ type SourceLine = {
 }
 
 /** Extract only product rows whose layout and sum are plausible. */
-export function parseReceiptItems(
+export type ParseReceiptItemsResult = {
+  items: ReceiptItem[]
+  reconciles: boolean
+  expectedTotal: string | null
+  actualTotal: string | null
+}
+
+export function parseReceiptItemsDetailed(
   text: string,
   options: ParseReceiptItemsOptions = {},
-): ReceiptItem[] {
+): ParseReceiptItemsResult {
   const sourceLines: SourceLine[] = options.lines?.length
     ? [...options.lines]
         .sort((a, b) => a.bbox.y0 - b.bbox.y0)
         .map((line) => ({
           text: line.text.replace(/\s+/g, ' ').trim(),
           confidence: line.confidence,
+          x0: line.bbox.x0,
           x1: line.bbox.x1,
           y0: line.bbox.y0,
           y1: line.bbox.y1,
@@ -133,13 +188,16 @@ export function parseReceiptItems(
     : text.split(/\r?\n/).map((line, index) => ({
         text: line.replace(/\s+/g, ' ').trim(),
         confidence: 100,
+        x0: 0,
         x1: undefined,
         y0: index * 20,
         y1: index * 20 + 16,
         height: 16,
       }))
 
-  let candidates = mergeSplitItemLines(sourceLines)
+  let candidates = mergeSplitItemLines(
+    options.lines?.length ? mergeVisualRows(sourceLines) : sourceLines,
+  )
     .map(({ text: line, confidence, x1 }) =>
       candidateFromLine(line, confidence, x1),
     )
@@ -157,16 +215,32 @@ export function parseReceiptItems(
     )
   }
 
+  const items = candidates
+    .map(({ name, price }) => ({ name, price }))
+    .slice(0, 500)
   const expectedTotal = normalizeReceiptAmount(options.expectedTotal ?? '')
-  if (expectedTotal && candidates.length) {
-    const expected = Number(expectedTotal)
-    const actual = candidates.reduce(
-      (sum, candidate) => sum + Number(candidate.price),
-      0,
-    )
-    const tolerance = Math.max(0.02, expected * 0.001)
-    if (Math.abs(actual - expected) > tolerance) return []
-  }
+  const actual = items.length
+    ? items.reduce((sum, item) => sum + Number(item.price), 0)
+    : null
+  const tolerance = expectedTotal
+    ? Math.max(0.02, Number(expectedTotal) * 0.001)
+    : 0
+  const reconciles =
+    actual !== null &&
+    (!expectedTotal || Math.abs(actual - Number(expectedTotal)) <= tolerance)
 
-  return candidates.map(({ name, price }) => ({ name, price })).slice(0, 500)
+  return {
+    items,
+    reconciles,
+    expectedTotal,
+    actualTotal: actual === null ? null : actual.toFixed(2),
+  }
+}
+
+export function parseReceiptItems(
+  text: string,
+  options: ParseReceiptItemsOptions = {},
+): ReceiptItem[] {
+  const result = parseReceiptItemsDetailed(text, options)
+  return result.reconciles ? result.items : []
 }
