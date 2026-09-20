@@ -268,15 +268,18 @@ the service private inside the Compose network:
 ENABLE_LOCAL_RECEIPT_OCR=true
 PADDLEOCR_URL=http://receipt-ai:8080
 PADDLEOCR_TIMEOUT_MS=180000
-PADDLEOCR_LANG=german
+PADDLEOCR_LANG=la
 PADDLEOCR_CPU_THREADS=4
 ```
 
-The model is downloaded into the persistent `paddleocr-models` volume on first
-startup. CPU inference can take considerably longer than browser OCR. If the
-service is unavailable, busy, or configured for a different selected language,
-the scanner falls back to its on-device Tesseract path. The group-scoped proxy
-limits uploads to 25 MB and bounds request frequency and concurrent inference.
+The default `la` setting uses PaddleOCR's shared Latin-script model for German,
+English, Croatian, Bosnian, Serbian (Latin), Slovenian, Italian, French and
+Spanish. Serbian Cyrillic requires a separate `rs_cyrillic` model. The model is
+downloaded into the persistent `paddleocr-models` volume on first startup. CPU
+inference can take considerably longer than browser OCR. If the service is
+unavailable, busy, or configured for a different selected language, the scanner
+falls back to its on-device Tesseract path. The group-scoped proxy limits
+uploads to 25 MB and bounds request frequency and concurrent inference.
 
 #### OpenAI receipt extraction
 

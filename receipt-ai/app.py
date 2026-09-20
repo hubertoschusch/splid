@@ -11,20 +11,43 @@ from paddleocr import PaddleOCR
 MAX_FILE_SIZE = 25 * 1024 * 1024
 pipeline: PaddleOCR | None = None
 inference_lock = asyncio.Lock()
-configured_language = os.environ.get("PADDLEOCR_LANG", "german").lower()
+configured_language = os.environ.get("PADDLEOCR_LANG", "la").lower()
+
+LATIN_MODEL_LANGUAGES = {
+    "bs",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "french",
+    "german",
+    "hr",
+    "it",
+    "la",
+    "rs_latin",
+    "sl",
+}
 
 LANGUAGE_MODELS = {
-    "deu": "german",
-    "eng": "en",
+    "deu": "latin",
+    "eng": "latin",
     "hrv": "latin",
     "bos": "latin",
     "srp_latn": "latin",
     "srp": "cyrillic",
     "slv": "latin",
-    "ita": "it",
-    "fra": "fr",
-    "spa": "es",
+    "ita": "latin",
+    "fra": "latin",
+    "spa": "latin",
 }
+
+
+def model_family(language: str) -> str:
+    if language in LATIN_MODEL_LANGUAGES:
+        return "latin"
+    if language in {"rs_cyrillic", "cyrillic"}:
+        return "cyrillic"
+    return language
 
 
 @asynccontextmanager
@@ -95,7 +118,7 @@ async def analyze(file: UploadFile = File(...), language: str = Form(...)):
         raise HTTPException(status_code=503, detail="Model is still loading")
     if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Unsupported image type")
-    if LANGUAGE_MODELS.get(language) != configured_language:
+    if LANGUAGE_MODELS.get(language) != model_family(configured_language):
         raise HTTPException(
             status_code=409,
             detail="Requested language requires a different OCR model",
