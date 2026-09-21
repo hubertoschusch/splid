@@ -217,15 +217,23 @@ export function LocalReceiptScanner({
         )
       }
       const parsed = parseReceiptTotal(recognized.text, receiptLanguages)
+      const structuredTotal = recognized.receipt?.total
       const parsedItems = parsed.best
         ? parseReceiptItemsDetailed(recognized.text, {
             lines: recognized.lines,
             expectedTotal: parsed.best.amount,
           })
         : null
-      setItems(parsedItems?.items ?? [])
+      const structuredItems = recognized.receipt?.items.map((item) => ({
+        name: item.name,
+        price: item.total.toFixed(2),
+      }))
+      setItems(structuredItems ?? parsedItems?.items ?? [])
       setCandidates(parsed.candidates)
-      if (parsed.best) {
+      if (structuredTotal !== null && structuredTotal !== undefined) {
+        setAmount(structuredTotal.toFixed(2))
+        setCurrency(recognized.receipt?.currency ?? null)
+      } else if (parsed.best) {
         setAmount(parsed.best.amount)
         setCurrency(parsed.best.currency)
       } else {

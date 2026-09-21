@@ -23,7 +23,7 @@ function isRateLimited(key: string) {
   return recent.length > RATE_LIMIT_REQUESTS
 }
 
-async function readLimitedBody(request: Request) {
+async function readLimitedBody(request: Request, contentType: string) {
   const declaredLength = Number(request.headers.get('content-length'))
   if (Number.isFinite(declaredLength) && declaredLength > MAX_FILE_SIZE)
     throw new Response(null, { status: 413 })
@@ -46,14 +46,14 @@ async function readLimitedBody(request: Request) {
     await reader.cancel().catch(() => undefined)
     throw caught
   }
-  return new Blob(chunks)
+  return new Blob(chunks, { type: contentType })
 }
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ groupId: string }> },
 ) {
-  if (!env.PADDLEOCR_URL || !env.ENABLE_LOCAL_RECEIPT_OCR)
+  if (!env.RECEIPT_AI_URL || !env.ENABLE_LOCAL_RECEIPT_OCR)
     return error('Server OCR is disabled.', 404)
 
   const { groupId } = await params
@@ -81,7 +81,7 @@ export async function POST(
 
   let file: Blob
   try {
-    file = await readLimitedBody(request)
+    file = await readLimitedBody(request, contentType)
   } catch (caught) {
     if (caught instanceof Response && caught.status === 413)
       return error('The receipt image is too large.', 413)
@@ -99,14 +99,17 @@ export async function POST(
   body.set('file', file, `receipt.${extension}`)
   body.set('language', requestedLanguages[0])
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), env.PADDLEOCR_TIMEOUT_MS)
+  const timeout = setTimeout(
+    () => controller.abort(),
+    env.RECEIPT_AI_TIMEOUT_MS,
+  )
   if (activeRequests >= 1) {
     clearTimeout(timeout)
     return error('The OCR service is busy.', 429)
   }
   activeRequests++
   try {
-    const response = await fetch(new URL('/analyze', env.PADDLEOCR_URL), {
+    const response = await fetch(new URL('/analyze', env.RECEIPT_AI_URL), {
       method: 'POST',
       body,
       signal: controller.signal,

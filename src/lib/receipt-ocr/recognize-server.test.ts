@@ -17,6 +17,22 @@ describe('recognizeReceiptOnServer', () => {
       json: async () => ({
         text: 'BIJELA KOBASICA 300 g 5,38 A\nUKUPNO 5,38',
         confidence: 100,
+        receipt: {
+          merchant: 'TEST MARKET',
+          date: '2026-09-20',
+          currency: 'EUR',
+          subtotal: 5.38,
+          tax: 0.35,
+          total: 5.38,
+          items: [
+            {
+              name: 'BIJELA KOBASICA 300 g',
+              quantity: 1,
+              unitPrice: 5.38,
+              total: 5.38,
+            },
+          ],
+        },
         lines: [
           {
             text: 'BIJELA KOBASICA 300 g 5,38 A',
@@ -36,6 +52,9 @@ describe('recognizeReceiptOnServer', () => {
     ).resolves.toMatchObject({
       text: expect.stringContaining('BIJELA KOBASICA'),
       lines: [{ text: expect.stringContaining('BIJELA KOBASICA') }],
+      receipt: {
+        items: [expect.objectContaining({ name: 'BIJELA KOBASICA 300 g' })],
+      },
     })
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/groups/group-a/receipt-ocr',

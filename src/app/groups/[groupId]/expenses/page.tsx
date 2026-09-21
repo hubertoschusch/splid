@@ -18,7 +18,7 @@ export default async function GroupExpensesPage() {
   return (
     <GroupExpensesPageClient
       enableLocalReceiptOcr={env.ENABLE_LOCAL_RECEIPT_OCR}
-      enableServerReceiptOcr={Boolean(env.PADDLEOCR_URL)}
+      enableServerReceiptOcr={Boolean(env.RECEIPT_AI_URL)}
       enableReceiptExtract={
         env.ENABLE_RECEIPT_EXTRACT || env.NEXT_PUBLIC_ENABLE_RECEIPT_EXTRACT
       }

@@ -289,11 +289,11 @@
   "CreateFromReceipt": {
     "Local": {
       "description": "Lies den Gesamtbetrag lokal auf diesem Gerät aus.",
-      "serverDescription": "Lies Gesamtbetrag und Produkte mit dem privaten OCR-Dienst auf diesem Server aus.",
+      "serverDescription": "Extrahiere Gesamtbetrag und Produkte mit dem privaten lokalen KI-Modell auf diesem Server.",
       "onDevice": "Auf diesem Gerät",
       "cloud": "Cloud-Erkennung",
       "privacy": "Das Bild wird auf diesem Gerät gelesen und für die OCR nicht hochgeladen.",
-      "serverPrivacy": "Das Bild wird vom privaten OCR-Dienst auf diesem Server analysiert.",
+      "serverPrivacy": "Das Bild wird vom privaten lokalen KI-Modell auf diesem Server analysiert.",
       "selectImage": "Foto aufnehmen oder Bild auswählen",
       "takePhoto": "Foto aufnehmen",
       "chooseGallery": "Aus Galerie wählen",
