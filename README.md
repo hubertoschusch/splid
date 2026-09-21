@@ -268,12 +268,12 @@ keep both services private inside the Compose network:
 ENABLE_LOCAL_RECEIPT_OCR=true
 RECEIPT_AI_URL=http://receipt-ai:8080
 RECEIPT_AI_TIMEOUT_MS=360000
-OLLAMA_MODEL=qwen3-vl:4b
+OLLAMA_MODEL=qwen3-vl:2b
 ```
 
 The model is downloaded into the persistent `ollama-models` volume on first
-startup. Allow at least 15 GB of free disk space for the Ollama runtime and the
-default 4B model. It returns merchant, date, currency, subtotal, tax, total, and
+startup. Allow at least 10 GB of free disk space for the Ollama runtime and the
+default 2B model. It returns merchant, date, currency, subtotal, tax, total, and
 product rows with quantity, unit price, and line total. The app verifies product
 sums before an itemized expense can be created. CPU inference can take
 considerably longer than browser OCR; a supported GPU speeds it up. If the
