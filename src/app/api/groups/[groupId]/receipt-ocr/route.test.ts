@@ -7,8 +7,8 @@ jest.mock('../../../../../lib/api', () => ({
 jest.mock('../../../../../lib/env', () => ({
   env: {
     ENABLE_LOCAL_RECEIPT_OCR: true,
-    PADDLEOCR_TIMEOUT_MS: 1_000,
-    PADDLEOCR_URL: 'http://receipt-ai:8080',
+    RECEIPT_AI_TIMEOUT_MS: 1_000,
+    RECEIPT_AI_URL: 'http://receipt-ai:8080',
   },
 }))
 

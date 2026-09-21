@@ -11,7 +11,7 @@ services:
       # Optional:
       DEFAULT_CURRENCY_CODE: EUR
       ENABLE_LOCAL_RECEIPT_OCR: "true"
-      PADDLEOCR_URL: http://${SERVICE_NAME_RECEIPT_AI}:8080
+      RECEIPT_AI_URL: http://${SERVICE_NAME_RECEIPT_AI}:8080
 
     depends_on:
       db:
@@ -24,16 +24,41 @@ services:
     expose:
       - "8080"
     environment:
-      PADDLEOCR_LANG: ${PADDLEOCR_LANG:-la}
-      PADDLEOCR_CPU_THREADS: ${PADDLEOCR_CPU_THREADS:-4}
-    volumes:
-      - paddleocr-models:/root/.paddlex
+      OLLAMA_URL: http://${SERVICE_NAME_RECEIPT_LLM}:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-vl:4b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
+    depends_on:
+      receipt-model:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 15s
       timeout: 5s
       retries: 40
       start_period: 120s
+
+  receipt-llm:
+    image: ollama/ollama:0.12.7
+    expose:
+      - "11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  receipt-model:
+    image: ollama/ollama:0.12.7
+    environment:
+      OLLAMA_HOST: http://${SERVICE_NAME_RECEIPT_LLM}:11434
+    command: ["pull", "${OLLAMA_MODEL:-qwen3-vl:4b}"]
+    depends_on:
+      receipt-llm:
+        condition: service_healthy
+    volumes:
+      - ollama-models:/root/.ollama
 
   db:
     image: postgres:17.3
@@ -61,4 +86,4 @@ services:
 
 volumes:
   postgres-data:
-  paddleocr-models:
+  ollama-models:

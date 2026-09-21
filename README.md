@@ -260,26 +260,26 @@ languages in the scanner. The corresponding Tesseract language data is loaded
 on demand and cached by the browser. The recognized amount is always shown for
 review before it is copied into the normal expense form.
 
-To recognize product rows with the bundled CPU-only PaddleOCR service, set
-`PADDLEOCR_URL`. The standard Compose files enable it automatically and keep
-the service private inside the Compose network:
+To extract structured product rows with the bundled local Qwen3-VL service,
+set `RECEIPT_AI_URL`. The standard Compose files run Qwen through Ollama and
+keep both services private inside the Compose network:
 
 ```.env
 ENABLE_LOCAL_RECEIPT_OCR=true
-PADDLEOCR_URL=http://receipt-ai:8080
-PADDLEOCR_TIMEOUT_MS=180000
-PADDLEOCR_LANG=la
-PADDLEOCR_CPU_THREADS=4
+RECEIPT_AI_URL=http://receipt-ai:8080
+RECEIPT_AI_TIMEOUT_MS=360000
+OLLAMA_MODEL=qwen3-vl:4b
 ```
 
-The default `la` setting uses PaddleOCR's shared Latin-script model for German,
-English, Croatian, Bosnian, Serbian (Latin), Slovenian, Italian, French and
-Spanish. Serbian Cyrillic requires a separate `rs_cyrillic` model. The model is
-downloaded into the persistent `paddleocr-models` volume on first startup. CPU
-inference can take considerably longer than browser OCR. If the service is
-unavailable, busy, or configured for a different selected language, the scanner
-falls back to its on-device Tesseract path. The group-scoped proxy limits
-uploads to 25 MB and bounds request frequency and concurrent inference.
+The model is downloaded into the persistent `ollama-models` volume on first
+startup. Allow at least 15 GB of free disk space for the Ollama runtime and the
+default 4B model. It returns merchant, date, currency, subtotal, tax, total, and
+product rows with quantity, unit price, and line total. The app verifies product
+sums before an itemized expense can be created. CPU inference can take
+considerably longer than browser OCR; a supported GPU speeds it up. If the
+service is unavailable or busy, the scanner falls back to its on-device
+Tesseract path. The group-scoped proxy limits uploads to 25 MB and bounds
+request frequency and concurrent inference.
 
 #### OpenAI receipt extraction
 

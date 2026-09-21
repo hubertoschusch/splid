@@ -73,11 +73,11 @@ const envSchema = z
       interpretEnvVarAsBool,
       z.boolean().default(false),
     ),
-    PADDLEOCR_URL: z.preprocess(
+    RECEIPT_AI_URL: z.preprocess(
       interpretBlankEnvVarAsUndefined,
       z.string().trim().url().optional(),
     ),
-    PADDLEOCR_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
+    RECEIPT_AI_TIMEOUT_MS: z.coerce.number().int().positive().default(360_000),
     NEXT_PUBLIC_ENABLE_CATEGORY_EXTRACT: z.preprocess(
       interpretEnvVarAsBool,
       z.boolean().default(false),

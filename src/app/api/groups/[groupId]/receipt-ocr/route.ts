@@ -53,7 +53,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ groupId: string }> },
 ) {
-  if (!env.PADDLEOCR_URL || !env.ENABLE_LOCAL_RECEIPT_OCR)
+  if (!env.RECEIPT_AI_URL || !env.ENABLE_LOCAL_RECEIPT_OCR)
     return error('Server OCR is disabled.', 404)
 
   const { groupId } = await params
@@ -99,14 +99,17 @@ export async function POST(
   body.set('file', file, `receipt.${extension}`)
   body.set('language', requestedLanguages[0])
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), env.PADDLEOCR_TIMEOUT_MS)
+  const timeout = setTimeout(
+    () => controller.abort(),
+    env.RECEIPT_AI_TIMEOUT_MS,
+  )
   if (activeRequests >= 1) {
     clearTimeout(timeout)
     return error('The OCR service is busy.', 429)
   }
   activeRequests++
   try {
-    const response = await fetch(new URL('/analyze', env.PADDLEOCR_URL), {
+    const response = await fetch(new URL('/analyze', env.RECEIPT_AI_URL), {
       method: 'POST',
       body,
       signal: controller.signal,

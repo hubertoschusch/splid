@@ -28,6 +28,24 @@ export type ReceiptOcrText = {
   text: string
   confidence: number
   lines: ReceiptOcrLine[]
+  receipt?: StructuredReceipt
+}
+
+export type StructuredReceipt = {
+  merchant: string | null
+  date: string | null
+  currency: string | null
+  subtotal: number | null
+  tax: number | null
+  total: number | null
+  items: StructuredReceiptItem[]
+}
+
+export type StructuredReceiptItem = {
+  name: string
+  quantity: number | null
+  unitPrice: number | null
+  total: number
 }
 
 export type ReceiptOcrLine = {
