@@ -4,6 +4,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -11,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 MAX_FILE_SIZE = 25 * 1024 * 1024
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://receipt-llm:11434").rstrip("/")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-vl:4b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-vl:2b")
 OLLAMA_TIMEOUT_SECONDS = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "300"))
 inference_lock = asyncio.Lock()
 
@@ -44,7 +45,19 @@ RECEIPT_SCHEMA = {
     "additionalProperties": False,
 }
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        await asyncio.to_thread(ollama_request, "/api/chat", {
+            "model": OLLAMA_MODEL,
+            "keep_alive": -1,
+        })
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, ValueError):
+        pass
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 def ollama_request(path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -118,10 +131,11 @@ discount totals must be negative. Do not include subtotal, tax, payment, change 
 items. Use ISO 4217 currency and YYYY-MM-DD date. Check the item sum against the printed total."""
     response = ollama_request("/api/chat", {
         "model": OLLAMA_MODEL,
+        "keep_alive": -1,
         "stream": False,
         "format": RECEIPT_SCHEMA,
         "messages": [{"role": "user", "content": prompt, "images": [base64.b64encode(data).decode("ascii")]}],
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "num_ctx": 4096, "num_predict": 2048},
     })
     content = response.get("message", {}).get("content")
     if not isinstance(content, str):

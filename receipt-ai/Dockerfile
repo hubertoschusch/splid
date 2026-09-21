@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     OLLAMA_URL=http://receipt-llm:11434 \
-    OLLAMA_MODEL=qwen3-vl:4b \
+    OLLAMA_MODEL=qwen3-vl:2b \
     OLLAMA_TIMEOUT_SECONDS=300
 
 WORKDIR /app
