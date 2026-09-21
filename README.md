@@ -268,18 +268,22 @@ keep both services private inside the Compose network:
 ENABLE_LOCAL_RECEIPT_OCR=true
 RECEIPT_AI_URL=http://receipt-ai:8080
 RECEIPT_AI_TIMEOUT_MS=360000
-OLLAMA_MODEL=qwen3-vl:2b
+OLLAMA_MODEL=qwen3-vl:2b-instruct
+OLLAMA_NUM_PREDICT=1024
 ```
 
 The model is downloaded into the persistent `ollama-models` volume on first
 startup. Allow at least 10 GB of free disk space for the Ollama runtime and the
-default 2B model. It returns merchant, date, currency, subtotal, tax, total, and
+default 2B instruct model. It returns merchant, date, currency, subtotal, tax, total, and
 product rows with quantity, unit price, and line total. The app verifies product
 sums before an itemized expense can be created. CPU inference can take
 considerably longer than browser OCR; a supported GPU speeds it up. If the
 service is unavailable or busy, the scanner falls back to its on-device
 Tesseract path. The group-scoped proxy limits uploads to 25 MB and bounds
 request frequency and concurrent inference.
+
+If an existing deployment explicitly sets `OLLAMA_MODEL=qwen3-vl:2b`, change
+it to `qwen3-vl:2b-instruct`; the former selects the slower thinking variant.
 
 #### OpenAI receipt extraction
 

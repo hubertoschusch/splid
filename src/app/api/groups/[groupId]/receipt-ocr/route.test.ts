@@ -80,4 +80,39 @@ describe('receipt OCR route', () => {
     expect(response.status).toBe(415)
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('forwards a client disconnect to the OCR service request', async () => {
+    const client = new AbortController()
+    let notifyFetchStarted: (signal: AbortSignal) => void
+    const fetchStarted = new Promise<AbortSignal>((resolve) => {
+      notifyFetchStarted = resolve
+    })
+    fetchMock.mockImplementation(
+      (_url: URL, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          notifyFetchStarted(init.signal!)
+          init.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'))
+          })
+        }),
+    )
+    const responsePromise = POST(
+      new Request('http://localhost/api/groups/group-a/receipt-ocr', {
+        body: new Blob(['receipt'], { type: 'image/jpeg' }),
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'X-Receipt-Languages': 'eng',
+        },
+        method: 'POST',
+        signal: client.signal,
+      }),
+      { params: Promise.resolve({ groupId: 'group-a' }) },
+    )
+
+    const downstreamSignal = await fetchStarted
+    client.abort()
+
+    await expect(responsePromise).resolves.toMatchObject({ status: 503 })
+    expect(downstreamSignal.aborted).toBe(true)
+  })
 })

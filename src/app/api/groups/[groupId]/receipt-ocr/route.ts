@@ -99,12 +99,16 @@ export async function POST(
   body.set('file', file, `receipt.${extension}`)
   body.set('language', requestedLanguages[0])
   const controller = new AbortController()
+  const abort = () => controller.abort(request.signal.reason)
+  if (request.signal.aborted) abort()
+  else request.signal.addEventListener('abort', abort, { once: true })
   const timeout = setTimeout(
     () => controller.abort(),
     env.RECEIPT_AI_TIMEOUT_MS,
   )
   if (activeRequests >= 1) {
     clearTimeout(timeout)
+    request.signal.removeEventListener('abort', abort)
     return error('The OCR service is busy.', 429)
   }
   activeRequests++
@@ -126,5 +130,6 @@ export async function POST(
   } finally {
     activeRequests--
     clearTimeout(timeout)
+    request.signal.removeEventListener('abort', abort)
   }
 }
