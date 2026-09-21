@@ -19,8 +19,9 @@ services:
       - 8080
     environment:
       OLLAMA_URL: http://receipt-llm:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-vl:2b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-vl:2b-instruct}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
+      OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-1024}
     depends_on:
       receipt-model:
         condition: service_completed_successfully
@@ -51,7 +52,7 @@ services:
     image: ollama/ollama:0.12.7
     environment:
       OLLAMA_HOST: http://receipt-llm:11434
-    command: ["pull", "${OLLAMA_MODEL:-qwen3-vl:2b}"]
+    command: ["pull", "${OLLAMA_MODEL:-qwen3-vl:2b-instruct}"]
     depends_on:
       receipt-llm:
         condition: service_healthy
