@@ -17,11 +17,18 @@ services:
     build: ./receipt-ai
     expose:
       - 8080
+    volumes:
+      - paddle-models:/root/.paddlex
     environment:
       OLLAMA_URL: http://receipt-llm:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-vl:2b-instruct}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
       OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-1024}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      PADDLEOCR_DETECTION_MODEL: ${PADDLEOCR_DETECTION_MODEL:-PP-OCRv5_mobile_det}
+      PADDLEOCR_RECOGNITION_MODEL: ${PADDLEOCR_RECOGNITION_MODEL:-latin_PP-OCRv5_mobile_rec}
+      PADDLEOCR_CPU_THREADS: ${PADDLEOCR_CPU_THREADS:-8}
+      PADDLEOCR_MAX_SIDE: ${PADDLEOCR_MAX_SIDE:-2200}
     depends_on:
       receipt-model:
         condition: service_completed_successfully
@@ -52,7 +59,7 @@ services:
     image: ollama/ollama:0.12.7
     environment:
       OLLAMA_HOST: http://receipt-llm:11434
-    command: ["pull", "${OLLAMA_MODEL:-qwen3-vl:2b-instruct}"]
+    command: ["pull", "${OLLAMA_MODEL:-qwen3:4b-instruct}"]
     depends_on:
       receipt-llm:
         condition: service_healthy
@@ -73,3 +80,4 @@ services:
 
 volumes:
   ollama-models:
+  paddle-models:

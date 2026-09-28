@@ -260,30 +260,38 @@ languages in the scanner. The corresponding Tesseract language data is loaded
 on demand and cached by the browser. The recognized amount is always shown for
 review before it is copied into the normal expense form.
 
-To extract structured product rows with the bundled local Qwen3-VL service,
-set `RECEIPT_AI_URL`. The standard Compose files run Qwen through Ollama and
-keep both services private inside the Compose network:
+To extract structured product rows on CPU, set `RECEIPT_AI_URL`. The bundled
+service reads the image with PP-OCRv5 Mobile and sends the recognized text,
+confidence and layout coordinates to a local Qwen3 text model. The image is not
+sent to the language model. The standard Compose files run Qwen through Ollama
+and keep both services private inside the Compose network:
 
 ```.env
 ENABLE_LOCAL_RECEIPT_OCR=true
 RECEIPT_AI_URL=http://receipt-ai:8080
 RECEIPT_AI_TIMEOUT_MS=360000
-OLLAMA_MODEL=qwen3-vl:2b-instruct
+OLLAMA_MODEL=qwen3:4b-instruct
 OLLAMA_NUM_PREDICT=1024
+OLLAMA_NUM_CTX=8192
+PADDLEOCR_DETECTION_MODEL=PP-OCRv5_mobile_det
+PADDLEOCR_RECOGNITION_MODEL=latin_PP-OCRv5_mobile_rec
+PADDLEOCR_CPU_THREADS=8
+PADDLEOCR_MAX_SIDE=2200
 ```
 
-The model is downloaded into the persistent `ollama-models` volume on first
-startup. Allow at least 10 GB of free disk space for the Ollama runtime and the
-default 2B instruct model. It returns merchant, date, currency, subtotal, tax, total, and
-product rows with quantity, unit price, and line total. The app verifies product
-sums before an itemized expense can be created. CPU inference can take
-considerably longer than browser OCR; a supported GPU speeds it up. If the
-service is unavailable or busy, the scanner falls back to its on-device
-Tesseract path. The group-scoped proxy limits uploads to 25 MB and bounds
-request frequency and concurrent inference.
+The Qwen model and PaddleOCR models are downloaded on first startup and cached
+in their containers. The default Qwen3 4B instruct model needs about 2.5 GB for
+its quantized weights; allow 8–12 GB of system RAM for the complete CPU stack.
+For smaller hosts, `qwen3:1.7b-q4_K_M` uses about 1.4 GB for its weights at some
+cost to extraction accuracy. The service returns merchant, date, currency,
+subtotal, tax, total, and product rows with quantity, unit price, and line total.
+The app verifies product sums before an itemized expense can be created.
 
-If an existing deployment explicitly sets `OLLAMA_MODEL=qwen3-vl:2b`, change
-it to `qwen3-vl:2b-instruct`; the former selects the slower thinking variant.
+Only one analysis runs at a time. If the service is unavailable or busy, the
+scanner falls back to its on-device Tesseract path. The group-scoped proxy
+limits uploads to 25 MB and bounds request frequency and concurrent inference.
+PP-OCRv5's configured Latin model handles the supported Latin-script languages;
+Serbian Cyrillic continues to use the browser fallback.
 
 #### OpenAI receipt extraction
 
